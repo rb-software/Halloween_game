@@ -1,0 +1,22 @@
+Photographic PBR textures sourced from ambientCG.
+
+All assets are released under CC0 1.0 Universal:
+https://ambientcg.com/license
+
+Material pages:
+- Concrete019: https://ambientcg.com/view?id=Concrete019
+- Asphalt001: https://ambientcg.com/view?id=Asphalt001
+- Plaster001: https://ambientcg.com/view?id=Plaster001
+
+The game uses the 1K JPG Color, NormalGL, Roughness, and Displacement maps.
+Displacement maps are used to build subdivided, subtly displaced wall meshes.
+These assets may be copied, modified, and redistributed under CC0.
+
+Additional photographic materials downloaded for the plaza, buildings, and roofs:
+- Bricks055: https://ambientcg.com/view?id=Bricks055
+- RoofingTiles001: https://ambientcg.com/view?id=RoofingTiles001
+- PavingStones036: https://ambientcg.com/view?id=PavingStones036
+
+These materials are also CC0 1.0 Universal. Their 1K JPG Color, NormalGL,
+Roughness, and Displacement maps are used by the game. Bricks055 and
+PavingStones036 also include AmbientOcclusion maps; RoofingTiles001 does not.
