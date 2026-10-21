@@ -1,3 +1,5 @@
+# ruff: noqa: F401
+
 import json
 import math
 import os
@@ -17,13 +19,11 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from direct.filter.FilterManager import FilterManager
-from panda3d.core import (
-    Fog,
-    Shader as PandaShader,
-    Texture as PandaTexture,
-    TransparencyAttrib,
-)
-from PIL import Image as PILImage, ImageFilter as PILImageFilter
+from panda3d.core import Fog
+from panda3d.core import Shader as PandaShader
+from panda3d.core import Texture as PandaTexture
+from PIL import Image as PILImage
+from PIL import ImageFilter as PILImageFilter
 from ursina import (
     AmbientLight,
     Audio,

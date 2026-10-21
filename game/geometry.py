@@ -1,9 +1,10 @@
 import math
 import random
 
-from PIL import Image as PILImage, ImageFilter as PILImageFilter
-from ursina import Mesh, Texture
 from panda3d.core import TransparencyAttrib
+from PIL import Image as PILImage
+from PIL import ImageFilter as PILImageFilter
+from ursina import Mesh, Texture
 
 
 def create_ocean_mesh(width, depth, segments=128):

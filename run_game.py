@@ -1,5 +1,4 @@
-from game.app import NeonFPS, input, run_game, update
-
+from game.app import run_game
 
 if __name__ == "__main__":
     run_game()

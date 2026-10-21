@@ -1,5 +1,5 @@
-from ursina import Shader, Vec2
 from panda3d.core import Shader as PandaShader
+from ursina import Shader, Vec2
 
 
 def create_material_shader():

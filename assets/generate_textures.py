@@ -3,7 +3,6 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter
 
-
 OUTPUT_DIR = Path(__file__).resolve().parent / "textures"
 SEED = 1986
 

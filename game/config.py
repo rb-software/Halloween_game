@@ -2,7 +2,6 @@ from pathlib import Path
 
 from ursina import color
 
-
 TEXTURE_DIR = Path(__file__).resolve().parent.parent / "assets" / "textures"
 
 AMBIENTCG_DIR = TEXTURE_DIR / "ambientcg"
