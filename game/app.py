@@ -86,6 +86,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         mouse.visible = False
         window.set_mouse_mode(window.M_confined)
         self.app.win.requestProperties(window)
+        self.mouse_captured = True
         self.mouse_sensitivity = 40
         self.touchpad_sensitivity = 180
         self.look_pitch = 0
@@ -651,6 +652,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         self.ocean.set_shader_input("water_time", now)
         if not self.game_over:
             self.move_player()
+            self.recenter_captured_mouse()
             self.update_snacks(dt, now)
             self.update_guard(dt, now)
             if self.torch_on:

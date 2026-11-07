@@ -81,7 +81,7 @@ Do not commit or share your API key.
 
 ## Controls
 
-The game hides and confines the mouse cursor to its window on startup. It uses absolute mouse movement to control the camera, avoiding relative-pointer mode. Press `R` to release the cursor to the system; click inside the game window to confine it again.
+The game hides and confines the mouse cursor to its window on startup. While captured, the cursor is continuously recentered so you can turn the camera without hitting the window edge. Press `R` to release the cursor to the system; click inside the game window to capture it again.
 
 | Key | Action |
 | --- | --- |
@@ -107,4 +107,5 @@ Install Ruff in your development environment and run the configured checks from 
 python -m pip install ruff
 ruff check .
 ruff format --check .
+python -m unittest discover -s tests -v
 ```

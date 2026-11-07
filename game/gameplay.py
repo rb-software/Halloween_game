@@ -398,6 +398,13 @@ class GameplayMixin:
         ):
             self.player.z = next_z
 
+    def recenter_captured_mouse(self):
+        if not self.mouse_captured or not self.app.win.has_pointer(0):
+            return
+        mouse.position = (0, 0)
+        mouse.prev_x = 0
+        mouse.prev_y = 0
+
     def set_message(self, message, duration=2.2):
         self.message = message
         self.message_until = clock.monotonic() + duration
@@ -748,11 +755,13 @@ class GameplayMixin:
         mouse.visible = False
         window.set_mouse_mode(window.M_confined)
         self.app.win.requestProperties(window)
+        self.mouse_captured = True
         self.capture_text.enabled = False
 
     def release_mouse(self):
         mouse.locked = False
         mouse.visible = True
+        self.mouse_captured = False
         self.capture_text.enabled = not self.game_over
 
     def input(self, key):
