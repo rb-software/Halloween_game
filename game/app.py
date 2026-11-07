@@ -47,6 +47,7 @@ from .config import (
 )
 from .entities import EntityBuilder
 from .gameplay import GameplayMixin
+from .geometry import add_andromeda_to_sky
 from .shaders import (
     create_ambient_occlusion_shader,
     create_material_shader,
@@ -636,15 +637,22 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             TEXTURE_DIR / "stained_paper.png",
             TEXTURE_DIR / "overcast_sky.png",
         )
-        missing = [path for path in files if not path.is_file()]
+        galaxy_path = TEXTURE_DIR / "andromeda_noirlab_3840.jpg"
+        missing = [path for path in (*files, galaxy_path) if not path.is_file()]
         if missing:
             names = ", ".join(str(path) for path in missing)
             raise FileNotFoundError(
                 f"Missing game textures: {names}. "
-                "Restore the ambientCG textures in assets/textures/ambientcg "
-                "and run the generator for the remaining materials."
+                "Restore the listed texture assets before launching the game."
             )
-        return tuple(Texture(str(path)) for path in files)
+        textures = [Texture(str(path)) for path in files[:-1]]
+        with PILImage.open(files[-1]) as sky_source, PILImage.open(
+            galaxy_path
+        ) as galaxy_source:
+            textures.append(
+                Texture(add_andromeda_to_sky(sky_source, galaxy_source))
+            )
+        return tuple(textures)
 
     def update(self):
         now = clock.monotonic()

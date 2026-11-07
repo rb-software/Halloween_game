@@ -1,6 +1,13 @@
 import unittest
+from pathlib import Path
 
-from game.geometry import create_gable_roof_mesh, create_ocean_mesh
+from PIL import Image as PILImage
+
+from game.geometry import (
+    add_andromeda_to_sky,
+    create_gable_roof_mesh,
+    create_ocean_mesh,
+)
 
 
 class GableRoofMeshTests(unittest.TestCase):
@@ -31,6 +38,29 @@ class OceanMeshTests(unittest.TestCase):
 
         self.assertEqual(len(ocean.vertices), (segments + 1) ** 2)
         self.assertEqual(len(ocean.triangles), segments**2 * 2)
+
+
+class AndromedaSkyTests(unittest.TestCase):
+    def test_high_resolution_andromeda_is_added_to_double_resolution_sky(self):
+        sky = PILImage.new("RGB", (512, 256), (70, 130, 180))
+        galaxy_path = (
+            Path(__file__).resolve().parents[1]
+            / "assets"
+            / "textures"
+            / "andromeda_noirlab_3840.jpg"
+        )
+
+        with PILImage.open(galaxy_path) as galaxy:
+            self.assertGreaterEqual(galaxy.width, 3840)
+            updated_sky = add_andromeda_to_sky(sky, galaxy)
+
+        self.assertEqual(updated_sky.size, (sky.width * 2, sky.height * 2))
+        self.assertEqual(sky.mode, "RGB")
+        self.assertLess(max(updated_sky.getpixel((0, 0))[:3]), 35)
+        self.assertNotEqual(
+            updated_sky.getpixel((512, 256)),
+            sky.getpixel((256, 128)),
+        )
 
 
 if __name__ == "__main__":

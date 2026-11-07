@@ -1,4 +1,6 @@
-from typing import Literal, Optional, TypedDict
+from __future__ import annotations
+
+from typing import Literal, TypedDict
 
 from ursina import Entity, Text
 
@@ -72,7 +74,7 @@ class GuardState(TypedDict):
     chase_speed: float
     chase_radius: float
     model_controlled: bool
-    ai_target: Optional[Cell]
+    ai_target: Cell | None
     ai_mode: Literal["patrol", "chase"]
     ai_inflight: bool
     ai_inflight_generation: int

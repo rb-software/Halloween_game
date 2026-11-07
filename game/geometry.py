@@ -3,7 +3,10 @@ import random
 
 from panda3d.core import TransparencyAttrib
 from PIL import Image as PILImage
+from PIL import ImageDraw as PILImageDraw
+from PIL import ImageEnhance as PILImageEnhance
 from PIL import ImageFilter as PILImageFilter
+from PIL import ImageOps as PILImageOps
 from ursina import Mesh, Texture
 
 
@@ -154,6 +157,126 @@ def create_gable_mesh(width, depth, height):
         (0.5, 1),
     )
     return Mesh(vertices=vertices, triangles=triangles, uvs=uvs, static=True)
+
+
+def add_andromeda_to_sky(sky_image, galaxy_image):
+    source = sky_image.convert("RGB").resize(
+        (sky_image.width * 2, sky_image.height * 2),
+        resample=PILImage.Resampling.LANCZOS,
+    )
+    width, height = source.size
+    source_luminance = PILImageOps.autocontrast(
+        PILImageOps.grayscale(source),
+        cutoff=2,
+    )
+    sky = PILImage.new("RGB", (width, height))
+    sky_pixels = sky.load()
+    luminance_pixels = source_luminance.load()
+    for y in range(height):
+        vertical = y / max(1, height - 1)
+        blend = min(1.0, vertical * 1.5)
+        top_color = (2, 4, 14)
+        horizon_color = (8, 9, 24)
+        for x in range(width):
+            base = tuple(
+                round(top * (1 - blend) + horizon * blend)
+                for top, horizon in zip(top_color, horizon_color)
+            )
+            cloud = max(0.0, (luminance_pixels[x, y] - 125) / 130) * 0.045
+            sky_pixels[x, y] = tuple(
+                round(channel * (1 - cloud) + tint * cloud)
+                for channel, tint in zip(base, (40, 55, 90))
+            )
+
+    sky = sky.convert("RGBA")
+
+    rng = random.Random(31031)
+    nebula = PILImage.new("RGBA", (width, height))
+    nebula_draw = PILImageDraw.Draw(nebula)
+    nebula_colors = (
+        (34, 52, 126, 28),
+        (77, 36, 114, 25),
+        (33, 80, 103, 22),
+        (125, 53, 91, 18),
+    )
+    for index in range(24):
+        center_x = rng.randrange(width)
+        center_y = rng.randrange(height // 8, height)
+        radius_x = rng.randrange(width // 12, width // 3)
+        radius_y = rng.randrange(max(12, height // 22), height // 7)
+        nebula_draw.ellipse(
+            (
+                center_x - radius_x,
+                center_y - radius_y,
+                center_x + radius_x,
+                center_y + radius_y,
+            ),
+            fill=nebula_colors[index % len(nebula_colors)],
+        )
+    nebula = nebula.filter(PILImageFilter.GaussianBlur(max(10, width // 48)))
+    sky.alpha_composite(nebula)
+
+    star_layer = PILImage.new("RGBA", (width, height))
+    star_draw = PILImageDraw.Draw(star_layer)
+    for _ in range(width * height // 210):
+        star_x = rng.randrange(width)
+        star_y = rng.randrange(height)
+        brightness = rng.randint(105, 235)
+        star_draw.point(
+            (star_x, star_y),
+            fill=(brightness, brightness, min(255, brightness + 18), 255),
+        )
+    for _ in range(max(12, width // 35)):
+        star_x = rng.randrange(width)
+        star_y = rng.randrange(height)
+        brightness = rng.randint(190, 255)
+        radius = rng.choice((1, 1, 2))
+        star_draw.ellipse(
+            (star_x - radius, star_y - radius, star_x + radius, star_y + radius),
+            fill=(brightness, brightness, 255, 255),
+        )
+    sky.alpha_composite(star_layer)
+
+    target_width = int(width * 1.22)
+    target_height = int(height * 0.94)
+    galaxy = galaxy_image.convert("RGB")
+    galaxy = PILImageOps.contain(
+        galaxy,
+        (target_width, target_height),
+        method=PILImage.Resampling.LANCZOS,
+    )
+    if galaxy.width > width:
+        crop_left = (galaxy.width - width) // 2
+        galaxy = galaxy.crop((crop_left, 0, crop_left + width, galaxy.height))
+    galaxy = PILImageEnhance.Contrast(galaxy).enhance(1.1)
+    galaxy = PILImageEnhance.Color(galaxy).enhance(1.15)
+    galaxy_luminance = PILImageOps.grayscale(galaxy)
+    galaxy = galaxy.convert("RGBA")
+    galaxy.putalpha(
+        galaxy_luminance.point(lambda value: min(230, max(0, (value - 10) * 1.5)))
+    )
+    galaxy = galaxy.filter(PILImageFilter.GaussianBlur(0.4))
+
+    galaxy_x = (width - galaxy.width) // 2
+    galaxy_y = max(
+        0,
+        (height - galaxy.height) // 2 - int(height * 0.08),
+    )
+    glow = PILImage.new("RGBA", (width, height))
+    glow_draw = PILImageDraw.Draw(glow)
+    glow_draw.ellipse(
+        (
+            galaxy_x - width // 40,
+            galaxy_y - height // 18,
+            galaxy_x + galaxy.width + width // 40,
+            galaxy_y + galaxy.height + height // 18,
+        ),
+        fill=(101, 125, 221, 64),
+    )
+    glow = glow.filter(PILImageFilter.GaussianBlur(max(18, width // 24)))
+    sky.alpha_composite(glow)
+    sky.alpha_composite(galaxy, dest=(galaxy_x, galaxy_y))
+    return sky
 
 
 def create_gable_roof_mesh(width, depth, height, thickness=0.14):
