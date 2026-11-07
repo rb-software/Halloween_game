@@ -22,6 +22,7 @@ from .config import (
     SNACK_COLORS,
     SNACK_STARTS,
 )
+from .models import HouseState, SnackState
 
 
 class GameplayMixin:
@@ -74,7 +75,7 @@ class GameplayMixin:
             )
             guard["root"].position = (x, 0, z)
             guard["root"].rotation_y = 0
-        self.house_state = [
+        self.house_state: list[HouseState] = [
             {"x": x, "z": z, "visited": False, "name": name}
             for (x, z), name in zip(HOUSE_POSITIONS, HOUSE_NAMES)
         ]
@@ -84,7 +85,7 @@ class GameplayMixin:
             for entity in entities:
                 destroy(entity)
         self.snack_entities = []
-        self.snacks = []
+        self.snacks: list[SnackState] = []
         for index, (x, z, kind) in enumerate(SNACK_STARTS):
             candy = Entity(
                 model="sphere" if kind == "lollipop" else "cube",
@@ -661,6 +662,7 @@ class GameplayMixin:
                 break
 
     def refresh_hud(self):
+        self.next_hud_refresh = clock.monotonic() + 0.1
         remaining = max(
             0,
             MISSION_SECONDS

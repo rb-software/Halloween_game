@@ -15,14 +15,16 @@ from .config import (
 )
 from .geometry import (
     create_gable_mesh,
+    create_gable_roof_mesh,
     create_profile_mesh,
     enable_alpha_blending,
 )
+from .models import GuardState, HouseEntities, InteractableState
 
 
 class EntityBuilder:
     def build_interactables(self):
-        self.interactable_entities = []
+        self.interactable_entities: list[InteractableState] = []
         for prop in INTERACTABLES:
             x, z = prop["x"], prop["z"]
             if prop["kind"] == "payphone":
@@ -107,6 +109,7 @@ class EntityBuilder:
             )
 
     def build_houses(self):
+        self.house_entities: list[HouseEntities] = []
         for index, ((x, z), name, rotation) in enumerate(
             zip(HOUSE_POSITIONS, HOUSE_NAMES, HOUSE_ROTATIONS)
         ):
@@ -150,34 +153,14 @@ class EntityBuilder:
             self.apply_surface_material(gable, facade_material)
             roof = Entity(
                 parent=root,
-                model="cube",
-                position=(0, 3.39, -0.43),
-                scale=(3.32, 0.13, 1.2),
-                rotation_x=-30,
+                model=create_gable_roof_mesh(3.42, 2.12, 0.86),
+                position=(0, 3.08, 0),
                 color=color.rgb(155, 88, 66),
                 texture=self.roof_texture,
+                double_sided=True,
             )
             roof.texture_scale = (3, 1.5)
             self.apply_surface_material(roof, "roofing")
-            rear_roof = Entity(
-                parent=root,
-                model="cube",
-                position=(0, 3.39, 0.43),
-                scale=(3.32, 0.13, 1.2),
-                rotation_x=30,
-                color=color.rgb(155, 88, 66),
-                texture=self.roof_texture,
-            )
-            rear_roof.texture_scale = (3, 1.5)
-            self.apply_surface_material(rear_roof, "roofing")
-            Entity(
-                parent=root,
-                model="cube",
-                position=(0, 3.93, 0),
-                scale=(3.42, 0.14, 0.16),
-                color=color.rgb(119, 70, 54),
-                texture=self.roof_texture,
-            )
             chimney = Entity(
                 parent=root,
                 model="cube",
@@ -344,7 +327,7 @@ class EntityBuilder:
             )
 
     def build_guard(self):
-        self.guard_entities = []
+        self.guard_entities: list[GuardState] = []
         for index, (x, z) in enumerate(NEIGHBOR_STARTS):
             root = Entity(position=(x, 0, z))
             coat_color = NEIGHBOR_COATS[index]

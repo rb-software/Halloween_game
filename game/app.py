@@ -81,6 +81,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         window.exit_button.visible = False
         camera.fov = 79
         camera.clip_plane_far = 260
+        mouse.traverse_target = None
         mouse.locked = False
         mouse.visible = False
         window.set_mouse_mode(window.M_confined)
@@ -786,8 +787,10 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
 
         if self.message and now > self.message_until:
             self.message_text.text = ""
+            self.message = ""
         self.capture_text.enabled = not mouse.locked and not self.game_over
-        self.refresh_hud()
+        if now >= self.next_hud_refresh:
+            self.refresh_hud()
 
     def run(self):
         try:

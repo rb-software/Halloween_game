@@ -2,6 +2,8 @@ from pathlib import Path
 
 from ursina import color
 
+from .models import InteractableDefinition, SnackKind
+
 TEXTURE_DIR = Path(__file__).resolve().parent.parent / "assets" / "textures"
 
 AMBIENTCG_DIR = TEXTURE_DIR / "ambientcg"
@@ -104,7 +106,7 @@ NEIGHBOR_TROUSERS = (
     color.rgb(51, 48, 43),
 )
 
-INTERACTABLES = (
+INTERACTABLES: tuple[InteractableDefinition, ...] = (
     {
         "x": 19.5,
         "z": 11.5,
@@ -147,7 +149,7 @@ INTERACTABLES = (
     },
 )
 
-SNACK_STARTS = (
+SNACK_STARTS: tuple[tuple[float, float, SnackKind], ...] = (
     (4.5, 2.5, "lollipop"),
     (14.0, 3.5, "fudge"),
     (3.5, 10.0, "pumpkin"),

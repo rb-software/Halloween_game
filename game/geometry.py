@@ -7,7 +7,7 @@ from PIL import ImageFilter as PILImageFilter
 from ursina import Mesh, Texture
 
 
-def create_ocean_mesh(width, depth, segments=128):
+def create_ocean_mesh(width, depth, segments=48):
     vertices = []
     normals = []
     uvs = []
@@ -153,6 +153,57 @@ def create_gable_mesh(width, depth, height):
         (1, 0),
         (0.5, 1),
     )
+    return Mesh(vertices=vertices, triangles=triangles, uvs=uvs, static=True)
+
+
+def create_gable_roof_mesh(width, depth, height, thickness=0.14):
+    half_width = width / 2
+    half_depth = depth / 2
+    vertices = []
+    uvs = []
+    triangles = []
+
+    def add_quad(a, b, c, d, reverse=False):
+        first = (a, b, c)
+        second = (a, c, d)
+        if reverse:
+            first = (first[0], first[2], first[1])
+            second = (second[0], second[2], second[1])
+        triangles.extend((first, second))
+
+    for eave_z, ridge_z in ((-half_depth, 0), (half_depth, 0)):
+        offset = len(vertices)
+        reverse = eave_z < 0
+        vertices.extend(
+            (
+                (-half_width, 0, eave_z),
+                (half_width, 0, eave_z),
+                (half_width, height, ridge_z),
+                (-half_width, height, ridge_z),
+                (-half_width, -thickness, eave_z),
+                (half_width, -thickness, eave_z),
+                (half_width, height - thickness, ridge_z),
+                (-half_width, height - thickness, ridge_z),
+            )
+        )
+        uvs.extend(
+            (
+                (0, 0),
+                (1, 0),
+                (1, 1),
+                (0, 1),
+                (0, 0),
+                (1, 0),
+                (1, 1),
+                (0, 1),
+            )
+        )
+        add_quad(offset, offset + 1, offset + 2, offset + 3, reverse)
+        add_quad(offset + 4, offset + 5, offset + 6, offset + 7, not reverse)
+        add_quad(offset, offset + 4, offset + 5, offset + 1, reverse)
+        add_quad(offset, offset + 3, offset + 7, offset + 4, reverse)
+        add_quad(offset + 1, offset + 5, offset + 6, offset + 2, reverse)
+
     return Mesh(vertices=vertices, triangles=triangles, uvs=uvs, static=True)
 
 
