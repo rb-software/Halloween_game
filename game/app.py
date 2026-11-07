@@ -30,7 +30,9 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         camera.fov = 79
         camera.clip_plane_far = 260
         mouse.locked = False
-        mouse.visible = True
+        mouse.visible = False
+        window.set_mouse_mode(window.M_confined)
+        self.app.win.requestProperties(window)
         self.mouse_sensitivity = 40
         self.touchpad_sensitivity = 180
         self.look_pitch = 0
@@ -520,7 +522,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             color=color.rgb(225, 217, 191),
         )
         self.controls_text = Text(
-            text="WASD ruch | Mysz obrot | SHIFT sprint | E akcja | Q podziel sie | F latarka\nTAB mapa | U dzwiek | P grafika | R restart | ESC wyjscie",
+            text="WASD ruch | Mysz obrot | SHIFT sprint | E akcja | Q podziel sie | F latarka\nTAB mapa | U dzwiek | P grafika | R oddaj kursor | ENTER restart | ESC wyjscie",
             position=(-0.86, -0.47),
             scale=0.62,
             color=color.rgb(199, 193, 172),
@@ -532,7 +534,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             color=color.rgb(235, 205, 146),
         )
         self.capture_text = Text(
-            text="RUSZAJ TOUCHPADEM, ABY OBRACAC KAMERA | M: ZABLOKUJ KURSOR",
+            text="KLIKNIJ OKNO, ABY PRZEJAC KURSOR | R: ODDAJ KURSOR",
             position=(0, -0.39),
             origin=(0, 0),
             scale=0.85,

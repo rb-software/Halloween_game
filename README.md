@@ -81,6 +81,8 @@ Do not commit or share your API key.
 
 ## Controls
 
+The game hides and confines the mouse cursor to its window on startup. It uses absolute mouse movement to control the camera, avoiding relative-pointer mode. Press `R` to release the cursor to the system; click inside the game window to confine it again.
+
 | Key | Action |
 | --- | --- |
 | W / A / S / D or arrow keys | Move |
@@ -89,9 +91,10 @@ Do not commit or share your API key.
 | E | Interact |
 | Q | Share an item |
 | F | Toggle the flashlight |
-| M | Lock or release the mouse |
 | P | Toggle the visual-quality mode |
 | Tab | Show or hide the map |
 | U | Toggle ambient audio |
-| R | Restart |
+| R | Release the mouse cursor to the system |
+| Click the game window | Capture the mouse again |
+| Enter | Restart after the game ends |
 | Esc | Quit |

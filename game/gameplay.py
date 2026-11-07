@@ -701,30 +701,37 @@ class GameplayMixin:
     def end_game(self, won):
         self.game_over = True
         self.end_text.text = (
-            "KONIEC ZMIANY\nNoc przetrwana\n\nR — zagraj ponownie"
+            "KONIEC ZMIANY\nNoc przetrwana\n\nENTER — zagraj ponownie\nR — oddaj kursor"
             if won
-            else "KONIEC CZASU\n\nR — sprobuj jeszcze raz"
+            else "KONIEC CZASU\n\nENTER — sprobuj jeszcze raz\nR — oddaj kursor"
         )
         self.end_text.enabled = True
+        self.capture_text.enabled = False
+
+    def capture_mouse(self):
+        mouse.locked = False
+        mouse.visible = False
+        window.set_mouse_mode(window.M_confined)
+        self.app.win.requestProperties(window)
+        self.capture_text.enabled = False
+
+    def release_mouse(self):
         mouse.locked = False
         mouse.visible = True
-        self.capture_text.enabled = False
+        self.capture_text.enabled = not self.game_over
 
     def input(self, key):
         if key == "escape":
             self.app.userExit()
         elif key == "p":
             self.set_photo_mode(not self.photo_mode)
-        elif key == "m" and not self.game_over:
-            mouse.locked = not mouse.locked
-            mouse.visible = not mouse.locked
         elif key == "left mouse down" and not mouse.locked and not self.game_over:
-            mouse.locked = True
-            mouse.visible = False
+            self.capture_mouse()
         elif key == "r":
+            self.release_mouse()
+        elif key == "enter" and self.game_over:
             self.reset()
-            mouse.locked = True
-            mouse.visible = False
+            self.capture_mouse()
         elif key == "e" and not self.game_over:
             self.interact()
         elif key == "q" and not self.game_over:
