@@ -98,3 +98,13 @@ The game hides and confines the mouse cursor to its window on startup. It uses a
 | Click the game window | Capture the mouse again |
 | Enter | Restart after the game ends |
 | Esc | Quit |
+
+## Code quality checks
+
+Install Ruff in your development environment and run the configured checks from the project directory:
+
+```bash
+python -m pip install ruff
+ruff check .
+ruff format --check .
+```

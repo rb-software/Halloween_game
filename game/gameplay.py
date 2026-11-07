@@ -1,4 +1,27 @@
-from .common import *
+import json
+import math
+import queue
+import threading
+import time as clock
+from collections import deque
+from http.client import HTTPException
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+from ursina import Entity, Vec3, color, destroy, held_keys, mouse, time, window
+
+from .config import (
+    AI_DECISION_INTERVAL,
+    HOUSE_NAMES,
+    HOUSE_POSITIONS,
+    MISSION_SECONDS,
+    NEIGHBOR_STARTS,
+    PLAYER_SPEED,
+    PLAYER_START,
+    PLAYER_START_ROTATION,
+    SNACK_COLORS,
+    SNACK_STARTS,
+)
 
 
 class GameplayMixin:
@@ -91,7 +114,7 @@ class GameplayMixin:
                     "entities": (candy, wrapper_fold),
                 }
             )
-        for house, state in zip(self.house_entities, self.house_state):
+        for house in self.house_entities:
             house["door"].color = color.rgb(72, 73, 58)
         self.message_text.text = ""
         self.end_text.enabled = False
@@ -157,7 +180,8 @@ class GameplayMixin:
                         "osiągalny cel z listy kandydatów, aby przechwycić gracza. "
                         "Wybierz mode='chase', gdy warto przechwytywać gracza, "
                         "albo mode='patrol', gdy lepiej obchodzić teren. Zwróć "
-                        'wyłącznie JSON w formacie {"target_index": 0, "mode": "chase"}. '
+                        "wyłącznie JSON w formacie "
+                        '{"target_index": 0, "mode": "chase"}. '
                         "Indeks musi wskazywać element z listy celów."
                     ),
                 },
@@ -255,7 +279,7 @@ class GameplayMixin:
             "pozostali_sasiedzi": [
                 {"x": round(other["x"], 1), "z": round(other["z"], 1)}
                 for other in self.guard_entities
-                if other is not guardf
+                if other is not guard
             ],
             "liczba_zebranych_pakunkow": self.treats_collected,
         }
@@ -694,8 +718,8 @@ class GameplayMixin:
                         chars.append(".")
                 rows.append("".join(chars))
             self.map_text.text = (
-                "MAPA  @ Ty  A Sasiad AI  G Sasiedzi  h Dom  d odwiedzony  ! Obiekt  * Pakunek\n"
-                + "\n".join(rows)
+                "MAPA  @ Ty  A Sasiad AI  G Sasiedzi  h Dom  d odwiedzony  "
+                "! Obiekt  * Pakunek\n" + "\n".join(rows)
             )
 
     def end_game(self, won):

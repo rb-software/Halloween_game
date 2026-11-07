@@ -1,6 +1,58 @@
-from .common import *
+import math
+import os
+import queue
+import random
+import sys
+import tempfile
+import time as clock
+import wave
+from array import array
+from contextlib import suppress
+
+from direct.filter.FilterManager import FilterManager
+from panda3d.core import Fog
+from panda3d.core import Texture as PandaTexture
+from PIL import Image as PILImage
+from PIL import ImageFilter as PILImageFilter
+from ursina import (
+    AmbientLight,
+    Audio,
+    Cone,
+    Cylinder,
+    DirectionalLight,
+    Entity,
+    Mesh,
+    PointLight,
+    Text,
+    Texture,
+    Ursina,
+    Vec2,
+    Vec3,
+    camera,
+    color,
+    invoke,
+    mouse,
+    scene,
+    time,
+    window,
+)
+
+from .config import (
+    AMBIENTCG_DIR,
+    MISSION_SECONDS,
+    PLAYER_START,
+    PLAYER_START_ROTATION,
+    TEXTURE_DIR,
+    create_map,
+)
 from .entities import EntityBuilder
 from .gameplay import GameplayMixin
+from .shaders import (
+    create_ambient_occlusion_shader,
+    create_material_shader,
+    create_ocean_shader,
+    create_skin_shader,
+)
 from .world import WorldBuilder
 
 
@@ -522,7 +574,12 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             color=color.rgb(225, 217, 191),
         )
         self.controls_text = Text(
-            text="WASD ruch | Mysz obrot | SHIFT sprint | E akcja | Q podziel sie | F latarka\nTAB mapa | U dzwiek | P grafika | R oddaj kursor | ENTER restart | ESC wyjscie",
+            text=(
+                "WASD ruch | Mysz obrot | SHIFT sprint | E akcja | "
+                "Q podziel sie | F latarka\n"
+                "TAB mapa | U dzwiek | P grafika | R oddaj kursor | "
+                "ENTER restart | ESC wyjscie"
+            ),
             position=(-0.86, -0.47),
             scale=0.62,
             color=color.rgb(199, 193, 172),
@@ -743,10 +800,8 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             self.ao_filter_manager.cleanup()
         if self.ambient_audio.clip:
             self.ambient_audio.stop(destroy=False)
-        try:
+        with suppress(FileNotFoundError):
             os.remove(self.ambient_path)
-        except FileNotFoundError:
-            pass
 
 
 game = None
