@@ -449,7 +449,7 @@ class WorldBuilder:
         self.ocean.set_shader_input("fog_density", self.fog_density)
         self.ocean.set_shader_input("water_time", 0.0)
 
-        for x, z, label in ((2.5, 6.5, "OSIEDLE"), (13.5, 2.5, "PSS")):
+        for x, z, label in ((2.5, 6.5, "THE ESTATE"), (13.5, 2.5, "PSS")):
             sign = Entity(
                 model="cube",
                 position=(x, 2.5, z),
@@ -1123,7 +1123,7 @@ class WorldBuilder:
             (
                 Text(
                     parent=root,
-                    text="MILICJA",
+                    text="CIVIL MILITIA",
                     origin=(0, 0),
                     scale=0.9,
                     color=color.rgb(52, 54, 48),

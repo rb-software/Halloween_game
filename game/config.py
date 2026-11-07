@@ -51,14 +51,14 @@ HOUSE_POSITIONS = (
 HOUSE_ROTATIONS = (180, 180, 0, 0, 0, 180, 180, 0)
 
 HOUSE_NAMES = (
-    "Kamienica przy rynku",
-    "Sklep odzieżowy",
-    "Mieszkanie nr 12",
-    "PSS Społem",
-    "Kamienica narożna",
-    "Dom przy ulicy",
-    "Kiosk osiedlowy",
-    "Stróżówka",
+    "Market Square Tenement",
+    "Clothing Store",
+    "Apartment No. 12",
+    "PSS Grocery Store",
+    "Corner Tenement",
+    "House on the Street",
+    "Neighborhood Kiosk",
+    "Caretaker's Lodge",
 )
 
 HOUSE_FACADE_COLORS = (
@@ -72,7 +72,16 @@ HOUSE_FACADE_COLORS = (
     color.rgb(131, 130, 118),
 )
 
-HOUSE_SIGNS = ("PSS", "RUCH", "12", "PSS", "OSIEDLE", "KOLONIA", "RUCH", "DOZORCA")
+HOUSE_SIGNS = (
+    "PSS",
+    "RUCH",
+    "12",
+    "PSS",
+    "ESTATE",
+    "DISTRICT",
+    "RUCH",
+    "CARETAKER",
+)
 
 NEIGHBOR_STARTS = (
     (13.5, 10.5),
@@ -99,60 +108,60 @@ INTERACTABLES = (
     {
         "x": 19.5,
         "z": 11.5,
-        "kind": "telefon",
-        "name": "Telefon na kartę",
-        "message": "Dzwonisz do domu — gospodarz dorzuca 20 sekund",
+        "kind": "payphone",
+        "name": "Payphone",
+        "message": "You call home — your family adds 20 seconds",
         "time_bonus": 20,
     },
     {
         "x": 29.5,
         "z": 11.5,
-        "kind": "przystanek",
-        "name": "Przystanek autobusowy",
-        "message": "Autobus nie przyjechał, ale odpoczywasz: sprint odnowiony",
+        "kind": "bus_stop",
+        "name": "Bus Stop",
+        "message": "The bus never came, but you rest and recover your sprint energy",
         "sprint": True,
     },
     {
         "x": 9.5,
         "z": 19.5,
-        "kind": "automat",
-        "name": "Automat z napojami",
-        "message": "Zimny oranż! Latarka naładowana",
+        "kind": "vending_machine",
+        "name": "Soda Machine",
+        "message": "An ice-cold orange soda! Flashlight recharged",
         "torch": 45,
     },
     {
         "x": 24.5,
         "z": 24.5,
-        "kind": "skrzynka",
-        "name": "Skrzynka elektryczna",
-        "message": "W skrzynce znajdujesz baterię R-20",
+        "kind": "electrical_box",
+        "name": "Electrical Box",
+        "message": "You find an R-20 battery in the box",
         "torch": 30,
     },
     {
         "x": 32.5,
         "z": 11.5,
-        "kind": "biletomat",
-        "name": "Tablica rozkładu jazdy",
-        "message": "Rozkład z 1986 roku — opóźnienie tylko 40 lat",
+        "kind": "timetable",
+        "name": "Bus Timetable",
+        "message": "A 1986 timetable — only 40 years late",
         "time_bonus": 10,
     },
 )
 
 SNACK_STARTS = (
-    (4.5, 2.5, "lizak"),
-    (14.0, 3.5, "krówka"),
-    (3.5, 10.0, "dynia"),
-    (14.5, 10.0, "lizak"),
-    (8.5, 10.5, "krówka"),
-    (8.5, 2.5, "dynia"),
-    (13.5, 5.5, "krówka"),
-    (21.5, 6.5, "dynia"),
-    (30.5, 5.5, "lizak"),
-    (22.5, 20.5, "krówka"),
-    (31.5, 18.5, "dynia"),
-    (7.5, 22.5, "lizak"),
-    (15.5, 18.5, "krówka"),
-    (18.5, 8.5, "dynia"),
+    (4.5, 2.5, "lollipop"),
+    (14.0, 3.5, "fudge"),
+    (3.5, 10.0, "pumpkin"),
+    (14.5, 10.0, "lollipop"),
+    (8.5, 10.5, "fudge"),
+    (8.5, 2.5, "pumpkin"),
+    (13.5, 5.5, "fudge"),
+    (21.5, 6.5, "pumpkin"),
+    (30.5, 5.5, "lollipop"),
+    (22.5, 20.5, "fudge"),
+    (31.5, 18.5, "pumpkin"),
+    (7.5, 22.5, "lollipop"),
+    (15.5, 18.5, "fudge"),
+    (18.5, 8.5, "pumpkin"),
 )
 
 SNACK_COLORS = (

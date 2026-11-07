@@ -75,7 +75,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         self.ai_results = queue.Queue()
         self.ai_generation = 0
         window.size = (1280, 720)
-        window.title = "Osiedle: Ostatni kurs — 1986"
+        window.title = "The Estate: The Last Run — 1986"
         window.color = color.rgb(48, 58, 64)
         window.fps_counter.enabled = True
         window.exit_button.visible = False
@@ -288,8 +288,8 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
                 path = AMBIENTCG_DIR / f"{asset}_{map_type}.jpg"
                 if not path.is_file():
                     raise FileNotFoundError(
-                        f"Brak mapy materiału {path}. "
-                        "Przywróć pliki z assets/textures/ambientcg."
+                        f"Missing material map: {path}. "
+                        "Restore the files in assets/textures/ambientcg."
                     )
                 if key != "displacement":
                     maps[material][key] = Texture(str(path))
@@ -527,12 +527,12 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         if not self.ao_available:
             self.ao_enabled = False
             print(
-                "Ekranowe Ambient Occlusion jest niedostepne; "
-                "pozostaja mapy AO materialow.",
+                "Screen-space ambient occlusion is unavailable; "
+                "material AO maps will still be used.",
                 file=sys.stderr,
             )
             self.set_message(
-                "Ekranowe AO niedostepne — aktywne pozostaja mapy AO materialow",
+                "Screen-space AO unavailable — material AO maps remain active.",
                 5,
             )
             return False
@@ -555,15 +555,15 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         for entity in self.pbr_entities:
             entity.set_shader_input("shadow_strength", float(enabled))
         self.set_message(
-            "Tryb fotorealistyczny wlaczony — cienie i Ambient Occlusion"
+            "Photo mode on — shadows and ambient occlusion enabled."
             if enabled
-            else "Tryb wydajnosci wlaczony — cienie i AO wylaczone",
+            else "Performance mode on — shadows and AO disabled.",
             2,
         )
 
     def build_hud(self):
         self.title_text = Text(
-            text="OSIEDLE 1986  /  OSTATNI KURS",
+            text="THE ESTATE 1986  /  THE LAST RUN",
             position=(-0.86, 0.46),
             scale=0.9,
             color=color.rgb(222, 190, 133),
@@ -575,10 +575,10 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         )
         self.controls_text = Text(
             text=(
-                "WASD ruch | Mysz obrot | SHIFT sprint | E akcja | "
-                "Q podziel sie | F latarka\n"
-                "TAB mapa | U dzwiek | P grafika | R oddaj kursor | "
-                "ENTER restart | ESC wyjscie"
+                "WASD move | Mouse look | SHIFT sprint | E interact | "
+                "Q share a treat | F flashlight\n"
+                "TAB map | U audio | P graphics | R release cursor | "
+                "ENTER restart | ESC quit"
             ),
             position=(-0.86, -0.47),
             scale=0.62,
@@ -591,7 +591,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             color=color.rgb(235, 205, 146),
         )
         self.capture_text = Text(
-            text="KLIKNIJ OKNO, ABY PRZEJAC KURSOR | R: ODDAJ KURSOR",
+            text="CLICK WINDOW TO CAPTURE MOUSE | R: RELEASE MOUSE",
             position=(0, -0.39),
             origin=(0, 0),
             scale=0.85,
@@ -638,9 +638,9 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         if missing:
             names = ", ".join(str(path) for path in missing)
             raise FileNotFoundError(
-                f"Brak tekstur gry: {names}. "
-                "Przywróć tekstury ambientCG w assets/textures/ambientcg "
-                "oraz uruchom generator dla pozostałych materiałów."
+                f"Missing game textures: {names}. "
+                "Restore the ambientCG textures in assets/textures/ambientcg "
+                "and run the generator for the remaining materials."
             )
         return tuple(Texture(str(path)) for path in files)
 

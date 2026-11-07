@@ -25,7 +25,7 @@ class EntityBuilder:
         self.interactable_entities = []
         for prop in INTERACTABLES:
             x, z = prop["x"], prop["z"]
-            if prop["kind"] == "telefon":
+            if prop["kind"] == "payphone":
                 Entity(
                     model="cube",
                     position=(x, 1.15, z),
@@ -45,7 +45,7 @@ class EntityBuilder:
                     scale=(0.25, 0.06, 0.04),
                     color=color.rgb(211, 185, 124),
                 )
-            elif prop["kind"] == "przystanek":
+            elif prop["kind"] == "bus_stop":
                 Entity(
                     model="cube",
                     position=(x, 1.45, z),
@@ -67,7 +67,7 @@ class EntityBuilder:
                     scale=(1.2, 0.4, 0.04),
                     color=color.rgb(141, 127, 95),
                 )
-            elif prop["kind"] == "automat":
+            elif prop["kind"] == "vending_machine":
                 Entity(
                     model="cube",
                     position=(x, 0.95, z),
@@ -83,7 +83,7 @@ class EntityBuilder:
                 )
                 Text(
                     parent=Entity(position=(x, 1.55, z - 0.37)),
-                    text="ORANZADA",
+                    text="ORANGE SODA",
                     origin=(0, 0),
                     scale=2,
                     color=color.rgb(240, 214, 164),

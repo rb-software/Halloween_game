@@ -87,9 +87,9 @@ class GameplayMixin:
         self.snacks = []
         for index, (x, z, kind) in enumerate(SNACK_STARTS):
             candy = Entity(
-                model="sphere" if kind == "lizak" else "cube",
+                model="sphere" if kind == "lollipop" else "cube",
                 position=(x, 0.42, z),
-                scale=(0.34, 0.46, 0.34) if kind == "lizak" else (0.42, 0.34, 0.3),
+                scale=(0.34, 0.46, 0.34) if kind == "lollipop" else (0.42, 0.34, 0.3),
                 color=SNACK_COLORS[index % len(SNACK_COLORS)],
                 texture=self.wrapper_texture,
             )
@@ -121,7 +121,7 @@ class GameplayMixin:
         self.refresh_hud()
         if not self.ai_api_key:
             self.set_message(
-                "Brak OPENAI_API_KEY — sąsiad używa lokalnej AI patrolującej.",
+                "No OPENAI_API_KEY — the neighbor uses local patrol AI.",
                 5,
             )
 
@@ -176,19 +176,20 @@ class GameplayMixin:
                 {
                     "role": "system",
                     "content": (
-                        "Sterujesz jednym przeciwnikiem w grze 3D. Wybierz najlepszy "
-                        "osiągalny cel z listy kandydatów, aby przechwycić gracza. "
-                        "Wybierz mode='chase', gdy warto przechwytywać gracza, "
-                        "albo mode='patrol', gdy lepiej obchodzić teren. Zwróć "
-                        "wyłącznie JSON w formacie "
+                        "You control one opponent in a 3D game. Choose the best "
+                        "reachable goal from the candidates to intercept the player. "
+                        "Choose mode='chase' when intercepting the player is "
+                        "worthwhile, "
+                        "or mode='patrol' when patrolling is better. Return only JSON "
+                        "in the format "
                         '{"target_index": 0, "mode": "chase"}. '
-                        "Indeks musi wskazywać element z listy celów."
+                        "The index must refer to an item in the candidate list."
                     ),
                 },
                 {
                     "role": "user",
                     "content": json.dumps(
-                        {"sytuacja": snapshot, "cele": candidates},
+                        {"situation": snapshot, "candidates": candidates},
                         ensure_ascii=False,
                     ),
                 },
@@ -214,23 +215,27 @@ class GameplayMixin:
                 or not isinstance(target_index, int)
                 or not 0 <= target_index < len(candidates)
             ):
-                return None, None, "AI zwróciło nieprawidłowy cel."
+                return None, None, "AI returned an invalid target."
             mode = decision.get("mode")
             if mode not in ("chase", "patrol"):
-                return None, None, "AI zwróciło nieprawidłowy tryb działania."
+                return None, None, "AI returned an invalid behavior mode."
             return tuple(candidates[target_index]["cell"]), mode, None
         except HTTPError as error:
             if error.code == 401:
-                return None, None, "API odrzuciło klucz (HTTP 401)."
+                return None, None, "The API rejected the key (HTTP 401)."
             if error.code == 429:
-                return None, None, "Limit API (HTTP 429); używam lokalnego patrolu."
-            return None, None, f"API zwróciło błąd HTTP {error.code}."
+                return (
+                    None,
+                    None,
+                    "API rate limit reached (HTTP 429); using local patrol.",
+                )
+            return None, None, f"API returned HTTP error {error.code}."
         except URLError:
-            return None, None, "Brak połączenia z API; używam lokalnego patrolu."
+            return None, None, "Cannot connect to the API; using local patrol."
         except TimeoutError:
-            return None, None, "Przekroczono limit czasu API; używam lokalnego patrolu."
+            return None, None, "API request timed out; using local patrol."
         except (OSError, HTTPException):
-            return None, None, "Błąd połączenia z API; używam lokalnego patrolu."
+            return None, None, "API connection error; using local patrol."
         except (
             UnicodeDecodeError,
             json.JSONDecodeError,
@@ -238,7 +243,7 @@ class GameplayMixin:
             IndexError,
             TypeError,
         ):
-            return None, None, "Nie udało się odczytać odpowiedzi AI."
+            return None, None, "Could not read the AI response."
 
     def request_ai_neighbor_target(self, guard, now):
         if not self.ai_api_key or guard["ai_inflight"] or now < guard["ai_retry_at"]:
@@ -247,17 +252,17 @@ class GameplayMixin:
         start = (int(guard["x"]), int(guard["z"]))
         player_cell = (int(self.player.x), int(self.player.z))
         possible_goals = [
-            (player_cell, "pozycja gracza"),
-            ((player_cell[0] + 1, player_cell[1]), "przechwycenie od wschodu"),
-            ((player_cell[0] - 1, player_cell[1]), "przechwycenie od zachodu"),
-            ((player_cell[0], player_cell[1] + 1), "przechwycenie od południa"),
-            ((player_cell[0], player_cell[1] - 1), "przechwycenie od północy"),
+            (player_cell, "player position"),
+            ((player_cell[0] + 1, player_cell[1]), "intercept from the east"),
+            ((player_cell[0] - 1, player_cell[1]), "intercept from the west"),
+            ((player_cell[0], player_cell[1] + 1), "intercept from the south"),
+            ((player_cell[0], player_cell[1] - 1), "intercept from the north"),
         ]
         patrol = sorted(
             self.guard_waypoints,
             key=lambda cell: abs(cell[0] - start[0]) + abs(cell[1] - start[1]),
         )
-        possible_goals.extend((cell, "punkt patrolu") for cell in patrol[:3])
+        possible_goals.extend((cell, "patrol point") for cell in patrol[:3])
 
         candidates = []
         seen = set()
@@ -267,21 +272,24 @@ class GameplayMixin:
             if cell != start and not self.shortest_path(start, cell):
                 continue
             seen.add(cell)
-            candidates.append({"cell": cell, "opis": label})
+            candidates.append({"cell": cell, "description": label})
         if not candidates:
             guard["ai_retry_at"] = now + 2
-            self.set_message("AI sąsiada: brak dostępnych celów; używam patrolu.", 3)
+            self.set_message(
+                "Neighbor AI: no reachable targets; switching to patrol.",
+                3,
+            )
             return
 
         snapshot = {
-            "sasiad": {"x": round(guard["x"], 1), "z": round(guard["z"], 1)},
-            "gracz": {"x": round(self.player.x, 1), "z": round(self.player.z, 1)},
-            "pozostali_sasiedzi": [
+            "neighbor": {"x": round(guard["x"], 1), "z": round(guard["z"], 1)},
+            "player": {"x": round(self.player.x, 1), "z": round(self.player.z, 1)},
+            "other_neighbors": [
                 {"x": round(other["x"], 1), "z": round(other["z"], 1)}
                 for other in self.guard_entities
                 if other is not guard
             ],
-            "liczba_zebranych_pakunkow": self.treats_collected,
+            "collected_treats": self.treats_collected,
         }
         generation = self.ai_generation
         guard["ai_inflight"] = True
@@ -403,10 +411,10 @@ class GameplayMixin:
             < 1.25
         ]
         if not available:
-            self.set_message("Podejdz blizej do pakunku", 1.2)
+            self.set_message("Move closer to the treat.", 1.2)
             return
         if self.candy_count >= self.bag_capacity:
-            self.set_message("Siatka pelna! Odwiedz dom po upgrade", 1.8)
+            self.set_message("Your bag is full! Visit a house to upgrade it.", 1.8)
             return
         snack = min(
             available,
@@ -421,7 +429,7 @@ class GameplayMixin:
         self.candy_count += 1
         self.treats_collected += 1
         self.score += 1
-        self.set_message("Zabezpieczono znaleziony pakunek")
+        self.set_message("Treat collected.")
         self.refresh_hud()
 
     def interact(self, share=False):
@@ -466,7 +474,7 @@ class GameplayMixin:
         ]
         if not nearby:
             if share:
-                self.set_message("Podejdz do domu, zeby sie podzielic", 1.4)
+                self.set_message("Move closer to a house to share a treat.", 1.4)
             else:
                 self.collect_snack()
             return
@@ -479,23 +487,23 @@ class GameplayMixin:
         )
         if share:
             if self.candy_count < 1:
-                self.set_message("Nie masz cukierka do podzielenia!", 1.5)
+                self.set_message("You don't have a treat to share!", 1.5)
                 return
             self.candy_count -= 1
             self.mission_time_bonus += 12
             self.torch_charge = min(100.0, self.torch_charge + 35)
-            message = "Sasiadka dala baterie i doliczyla 12 sekund"
+            message = "The neighbor gave you a battery and added 12 seconds."
         else:
             self.candy_count = min(self.bag_capacity, self.candy_count + 1)
             if index == 0:
                 self.bag_capacity += 2
-                message = "Siatka z kiosku! Pojemnosc +2"
+                message = "A bag from the kiosk! Capacity +2."
             elif index == 1:
                 self.sprint_energy = 100.0
-                message = "Pan z kiosku pozyczyl latarke!"
+                message = "The kiosk owner lent you a flashlight!"
             else:
                 self.torch_charge = 100.0
-                message = "Bateria R-20 naladowana do pelna!"
+                message = "R-20 battery fully charged!"
         house["visited"] = True
         self.visited_houses += 1
         self.house_entities[index]["door"].color = color.rgb(92, 112, 78)
@@ -550,18 +558,18 @@ class GameplayMixin:
                 continue
             if error:
                 ai_guard["ai_retry_at"] = now + 12
-                self.set_message(f"AI sąsiada: {error}", 4)
+                self.set_message(f"Neighbor AI: {error}", 4)
                 continue
             if target is None:
                 continue
             if mode not in ("chase", "patrol"):
                 ai_guard["ai_retry_at"] = now + 12
-                self.set_message("AI sąsiada zwróciło nieprawidłowy tryb.", 4)
+                self.set_message("Neighbor AI returned an invalid mode.", 4)
                 continue
             start = (int(ai_guard["x"]), int(ai_guard["z"]))
             if self.is_wall(target[0] + 0.5, target[1] + 0.5):
                 ai_guard["ai_retry_at"] = now + 12
-                self.set_message("AI sąsiada wskazało niedostępne pole.", 4)
+                self.set_message("Neighbor AI selected an unreachable location.", 4)
                 continue
             ai_guard["ai_target"] = target
             ai_guard["ai_mode"] = mode
@@ -649,7 +657,7 @@ class GameplayMixin:
                 self.player.position = PLAYER_START
                 self.candy_count = max(0, self.candy_count - 1)
                 self.mission_time_bonus -= 10
-                self.set_message("Zostales dopadniety. Zgubiles pakunek i 10 sekund")
+                self.set_message("Caught! You dropped a treat and lost 10 seconds.")
                 break
 
     def refresh_hud(self):
@@ -660,11 +668,11 @@ class GameplayMixin:
             + self.mission_time_bonus,
         )
         self.stats_text.text = (
-            f"SIATKA {self.candy_count}/{self.bag_capacity}   "
-            f"DOMY {self.visited_houses}/{len(HOUSE_POSITIONS)}   "
-            f"ZNALEZISKA {self.treats_collected}/5   "
-            f"CZAS {int(remaining // 60):02}:{int(remaining % 60):02}   "
-            f"SPRINT {int(self.sprint_energy)}%   LATARKA {int(self.torch_charge)}%"
+            f"BAG {self.candy_count}/{self.bag_capacity}   "
+            f"HOUSES {self.visited_houses}/{len(HOUSE_POSITIONS)}   "
+            f"TREATS {self.treats_collected}/5   "
+            f"TIME {int(remaining // 60):02}:{int(remaining % 60):02}   "
+            f"SPRINT {int(self.sprint_energy)}%   FLASHLIGHT {int(self.torch_charge)}%"
         )
         if self.map_visible:
             rows = []
@@ -718,16 +726,17 @@ class GameplayMixin:
                         chars.append(".")
                 rows.append("".join(chars))
             self.map_text.text = (
-                "MAPA  @ Ty  A Sasiad AI  G Sasiedzi  h Dom  d odwiedzony  "
-                "! Obiekt  * Pakunek\n" + "\n".join(rows)
+                "MAP  @ You  A AI neighbor  G Neighbors  h House  d Visited  "
+                "! Item  * Treat\n" + "\n".join(rows)
             )
 
     def end_game(self, won):
         self.game_over = True
         self.end_text.text = (
-            "KONIEC ZMIANY\nNoc przetrwana\n\nENTER — zagraj ponownie\nR — oddaj kursor"
+            "SHIFT OVER\nYou survived the night\n\n"
+            "ENTER — play again\nR — release cursor"
             if won
-            else "KONIEC CZASU\n\nENTER — sprobuj jeszcze raz\nR — oddaj kursor"
+            else "TIME'S UP\n\nENTER — try again\nR — release cursor"
         )
         self.end_text.enabled = True
         self.capture_text.enabled = False
@@ -765,7 +774,7 @@ class GameplayMixin:
                 self.torch_on = not self.torch_on
                 self.torch.enabled = self.torch_on
                 self.set_message(
-                    "Latarka wlaczona" if self.torch_on else "Latarka wylaczona",
+                    "Flashlight on" if self.torch_on else "Flashlight off",
                     1.2,
                 )
         elif key == "tab":
@@ -775,8 +784,6 @@ class GameplayMixin:
             self.audio_enabled = not self.audio_enabled
             self.ambient_audio.volume = 0.28 if self.audio_enabled else 0
             self.set_message(
-                "Dzwieki osiedla wlaczone"
-                if self.audio_enabled
-                else "Dzwieki osiedla wylaczone",
+                "Ambient audio on" if self.audio_enabled else "Ambient audio off",
                 1.5,
             )
