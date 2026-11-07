@@ -9,6 +9,7 @@ from .config import (
     HOUSE_ROTATIONS,
     HOUSE_SIGNS,
     INTERACTABLES,
+    NEIGHBOR_COUNT,
     NEIGHBOR_COATS,
     NEIGHBOR_STARTS,
     NEIGHBOR_TROUSERS,
@@ -328,10 +329,23 @@ class EntityBuilder:
 
     def build_guard(self):
         self.guard_entities: list[GuardState] = []
-        for index, (x, z) in enumerate(NEIGHBOR_STARTS):
+        for index in range(NEIGHBOR_COUNT):
+            x, z = NEIGHBOR_STARTS[index % len(NEIGHBOR_STARTS)]
             root = Entity(position=(x, 0, z))
-            coat_color = NEIGHBOR_COATS[index]
-            trouser_color = NEIGHBOR_TROUSERS[index]
+            coat_color = (
+                NEIGHBOR_COATS[0]
+                if index == 0
+                else NEIGHBOR_COATS[
+                    1 + (index - 1) % (len(NEIGHBOR_COATS) - 1)
+                ]
+            )
+            trouser_color = (
+                NEIGHBOR_TROUSERS[0]
+                if index == 0
+                else NEIGHBOR_TROUSERS[
+                    1 + (index - 1) % (len(NEIGHBOR_TROUSERS) - 1)
+                ]
+            )
             build = (0.94, 1.02, 0.98, 1.06)[index % 4]
             neck = Entity(
                 parent=root,
@@ -407,7 +421,7 @@ class EntityBuilder:
                 color.rgb(77, 68, 53),
                 color.rgb(55, 55, 54),
                 color.rgb(64, 48, 39),
-            )[index]
+            )[index % 4]
             nose = Entity(
                 parent=head,
                 model=create_profile_mesh(
@@ -483,8 +497,51 @@ class EntityBuilder:
                     model="sphere",
                     position=(0, button_y, 0.166 * build),
                     scale=0.018,
-                    color=color.rgb(58, 52, 42),
+                    color=(
+                        color.rgb(212, 180, 90)
+                        if index == 0
+                        else color.rgb(58, 52, 42)
+                    ),
                 )
+            if index == 0:
+                Entity(
+                    parent=root,
+                    model="cube",
+                    position=(0, 0.86, 0.14),
+                    scale=(0.39, 0.055, 0.045),
+                    color=color.rgb(24, 34, 49),
+                    texture=self.fabric_texture,
+                )
+                Entity(
+                    parent=root,
+                    model="sphere",
+                    position=(0.105, 1.29, 0.158),
+                    scale=(0.075, 0.09, 0.025),
+                    color=color.rgb(218, 183, 82),
+                    unlit=True,
+                )
+                for side in (-1, 1):
+                    Entity(
+                        parent=root,
+                        model="cube",
+                        position=(side * 0.28, 1.48, 0),
+                        scale=(0.13, 0.055, 0.12),
+                        color=color.rgb(202, 177, 103),
+                    )
+
+            greeting_bubble = Text(
+                parent=root,
+                text="Hi",
+                position=(0, 2.12, 0),
+                origin=(0, 0),
+                scale=5,
+                color=color.rgb(36, 47, 42),
+                billboard=True,
+                background=True,
+                unlit=True,
+                enabled=False,
+            )
+            greeting_bubble.background.color = color.rgba(246, 242, 219, 245)
             for side in (-1, 1):
                 Entity(
                     parent=root,
@@ -587,16 +644,25 @@ class EntityBuilder:
                     parent=head,
                     model="cube",
                     position=(0, 0.43, -0.005),
-                    scale=(0.31, 0.075, 0.26),
-                    color=color.rgb(54, 59, 51),
+                    scale=(0.34, 0.085, 0.26),
+                    color=color.rgb(34, 64, 109),
+                    texture=self.fabric_texture,
+                )
+                Entity(
+                    parent=head,
+                    model="cube",
+                    position=(0, 0.39, 0.115),
+                    scale=(0.39, 0.035, 0.18),
+                    color=color.rgb(24, 48, 83),
                     texture=self.fabric_texture,
                 )
                 Entity(
                     parent=head,
                     model="sphere",
-                    position=(0, 0.39, 0.115),
-                    scale=(0.14, 0.035, 0.035),
-                    color=color.rgb(42, 37, 32),
+                    position=(0, 0.43, 0.143),
+                    scale=(0.06, 0.065, 0.022),
+                    color=color.rgb(218, 183, 82),
+                    unlit=True,
                 )
             else:
                 Entity(
@@ -618,11 +684,13 @@ class EntityBuilder:
                     "root": root,
                     "head": head,
                     "limbs": (arms[0], arms[1], legs[0], legs[1]),
+                    "greeting_bubble": greeting_bubble,
+                    "greeting_until": 0.0,
                     "x": x,
                     "z": z,
                     "path": [],
                     "repath_at": 0.0,
-                    "waypoint_index": index * 2,
+                    "patrol_target": (int(x), int(z)),
                     "phase": index * 1.7,
                     "speed": 0.68 + index * 0.055,
                     "chase_speed": 1.2 + index * 0.06,

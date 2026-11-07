@@ -85,6 +85,8 @@ HOUSE_SIGNS = (
     "CARETAKER",
 )
 
+NEIGHBOR_COUNT = 20
+
 NEIGHBOR_STARTS = (
     (13.5, 10.5),
     (21.5, 11.5),
@@ -93,17 +95,17 @@ NEIGHBOR_STARTS = (
 )
 
 NEIGHBOR_COATS = (
-    color.rgb(66, 69, 62),
-    color.rgb(76, 78, 67),
-    color.rgb(68, 72, 75),
-    color.rgb(79, 68, 57),
+    color.rgb(37, 76, 132),
+    color.rgb(69, 104, 65),
+    color.rgb(79, 112, 67),
+    color.rgb(62, 91, 60),
 )
 
 NEIGHBOR_TROUSERS = (
-    color.rgb(44, 47, 45),
-    color.rgb(55, 58, 49),
-    color.rgb(46, 49, 53),
-    color.rgb(51, 48, 43),
+    color.rgb(35, 44, 62),
+    color.rgb(55, 57, 48),
+    color.rgb(57, 48, 41),
+    color.rgb(44, 49, 44),
 )
 
 INTERACTABLES: tuple[InteractableDefinition, ...] = (

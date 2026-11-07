@@ -1,6 +1,7 @@
 import json
 import math
 import queue
+import random
 import threading
 import time as clock
 from collections import deque
@@ -15,7 +16,6 @@ from .config import (
     HOUSE_NAMES,
     HOUSE_POSITIONS,
     MISSION_SECONDS,
-    NEIGHBOR_STARTS,
     PLAYER_SPEED,
     PLAYER_START,
     PLAYER_START_ROTATION,
@@ -48,33 +48,32 @@ class GameplayMixin:
         self.map_text.enabled = False
         self.message = ""
         self.message_until = 0.0
-        self.guard_waypoints = (
-            (13, 10),
-            (15, 9),
-            (19, 11),
-            (22, 12),
-            (27, 12),
-            (30, 12),
-            (30, 14),
-            (31, 24),
-            (20, 24),
-            (9, 20),
-            (3, 11),
-        )
+        self.greeting_cooldowns = {}
+        self.patrol_cells = [
+            (x, z)
+            for z, row in enumerate(self.grid)
+            for x, _ in enumerate(row)
+            if not self.is_wall(x + 0.5, z + 0.5)
+        ]
+        starts = self.random_neighbor_positions(len(self.guard_entities))
         for index, guard in enumerate(self.guard_entities):
-            x, z = NEIGHBOR_STARTS[index]
+            x, z = starts[index]
             guard.update(
                 x=x,
                 z=z,
                 path=[],
                 repath_at=0.0,
-                waypoint_index=(index * 2) % len(self.guard_waypoints),
+                patrol_target=(int(x), int(z)),
                 ai_target=None,
                 ai_mode="patrol",
                 ai_retry_at=0.0,
+                greeting_until=0.0,
             )
+            guard["greeting_bubble"].enabled = False
             guard["root"].position = (x, 0, z)
             guard["root"].rotation_y = 0
+        for index, guard in enumerate(self.guard_entities):
+            guard["patrol_target"] = self.choose_guard_patrol_target(index)
         self.house_state: list[HouseState] = [
             {"x": x, "z": z, "visited": False, "name": name}
             for (x, z), name in zip(HOUSE_POSITIONS, HOUSE_NAMES)
@@ -135,6 +134,80 @@ class GameplayMixin:
             or cell_z >= self.map_height
             or self.grid[cell_z][cell_x] in ("#", "T", "H")
         )
+
+    def random_neighbor_positions(self, count):
+        cells = self.patrol_cells[:]
+        random.shuffle(cells)
+        starts = []
+        if count <= 0:
+            return starts
+        for minimum_distance in (10.0, 6.0, 0.0):
+            for cell_x, cell_z in cells:
+                position = (cell_x + 0.5, cell_z + 0.5)
+                player_distance = math.hypot(
+                    position[0] - self.player.x,
+                    position[1] - self.player.z,
+                )
+                if player_distance < 4.0 or player_distance < minimum_distance:
+                    continue
+                if any(
+                    math.hypot(position[0] - x, position[1] - z)
+                    < minimum_distance
+                    for x, z in starts
+                ):
+                    continue
+                if position not in starts:
+                    starts.append(position)
+                    if len(starts) == count:
+                        return starts
+        if len(starts) < count:
+            raise RuntimeError("Not enough walkable map cells to place all neighbors.")
+        return starts
+
+    def choose_guard_patrol_target(self, guard_index):
+        guard = self.guard_entities[guard_index]
+        other_positions = []
+        other_targets = []
+        for index, other in enumerate(self.guard_entities):
+            if index == guard_index:
+                continue
+            other_positions.append((other["x"], other["z"]))
+            if "patrol_target" in other:
+                other_targets.append(
+                    (other["patrol_target"][0] + 0.5, other["patrol_target"][1] + 0.5)
+                )
+
+        for minimum_distance in (12.0, 8.0, 4.0, 0.0):
+            candidates = [
+                cell
+                for cell in self.patrol_cells
+                if math.hypot(
+                    cell[0] + 0.5 - guard["x"],
+                    cell[1] + 0.5 - guard["z"],
+                )
+                >= minimum_distance
+                and cell not in {
+                    other["patrol_target"]
+                    for index, other in enumerate(self.guard_entities)
+                    if index != guard_index and "patrol_target" in other
+                }
+            ]
+            if candidates:
+                def separation(cell):
+                    position = (cell[0] + 0.5, cell[1] + 0.5)
+                    distances = [
+                        math.hypot(position[0] - x, position[1] - z)
+                        for x, z in other_positions + other_targets
+                    ]
+                    return min(distances, default=math.inf)
+
+                best_separation = max(separation(cell) for cell in candidates)
+                best_candidates = [
+                    cell for cell in candidates
+                    if separation(cell) >= best_separation - 1.0
+                ]
+                return random.choice(best_candidates)
+        raise RuntimeError("Could not find a patrol destination for a neighbor.")
 
     def shortest_path(self, start, goal):
         if self.is_wall(goal[0] + 0.5, goal[1] + 0.5):
@@ -259,11 +332,9 @@ class GameplayMixin:
             ((player_cell[0], player_cell[1] + 1), "intercept from the south"),
             ((player_cell[0], player_cell[1] - 1), "intercept from the north"),
         ]
-        patrol = sorted(
-            self.guard_waypoints,
-            key=lambda cell: abs(cell[0] - start[0]) + abs(cell[1] - start[1]),
+        possible_goals.append(
+            (guard["patrol_target"], "assigned patrol point")
         )
-        possible_goals.extend((cell, "patrol point") for cell in patrol[:3])
 
         candidates = []
         seen = set()
@@ -340,6 +411,27 @@ class GameplayMixin:
         options = [cell for cell in safer if distances[cell] == farthest]
         goal = options[int(snack["phase"] * 100) % len(options)]
         snack["path"] = self.shortest_path(snack_cell, goal)
+
+    def update_neighbor_greetings(self, now):
+        for guard in self.guard_entities:
+            if now >= guard["greeting_until"]:
+                guard["greeting_bubble"].enabled = False
+
+        for first_index, first in enumerate(self.guard_entities):
+            for second_index in range(first_index + 1, len(self.guard_entities)):
+                second = self.guard_entities[second_index]
+                pair = (first_index, second_index)
+                distance = math.hypot(
+                    first["x"] - second["x"],
+                    first["z"] - second["z"],
+                )
+                if distance > 1.5 or now < self.greeting_cooldowns.get(pair, 0.0):
+                    continue
+                greeting_until = now + 1.5
+                for guard in (first, second):
+                    guard["greeting_until"] = greeting_until
+                    guard["greeting_bubble"].enabled = True
+                self.greeting_cooldowns[pair] = now + 5.0
 
     def move_player(self):
         dt = min(time.dt, 0.05)
@@ -587,12 +679,47 @@ class GameplayMixin:
             ai_guard["repath_at"] = now + 0.5
             ai_guard["ai_retry_at"] = now + AI_DECISION_INTERVAL
 
-        for guard in self.guard_entities:
+        ai_chaser = next(
+            (
+                index
+                for index, guard in enumerate(self.guard_entities)
+                if guard["model_controlled"]
+                and guard["ai_target"] is not None
+                and guard["ai_mode"] == "chase"
+            ),
+            None,
+        )
+        local_chaser = min(
+            (
+                (
+                    index,
+                    math.hypot(
+                        self.player.x - guard["x"],
+                        self.player.z - guard["z"],
+                    ),
+                )
+                for index, guard in enumerate(self.guard_entities)
+                if not guard["model_controlled"]
+                and math.hypot(
+                    self.player.x - guard["x"],
+                    self.player.z - guard["z"],
+                )
+                < guard["chase_radius"]
+            ),
+            key=lambda item: item[1],
+            default=(None, math.inf),
+        )[0]
+        active_chaser = ai_chaser if ai_chaser is not None else local_chaser
+
+        for guard_index, guard in enumerate(self.guard_entities):
             distance_to_player = math.hypot(
                 self.player.x - guard["x"],
                 self.player.z - guard["z"],
             )
-            chasing = distance_to_player < guard["chase_radius"]
+            chasing = (
+                guard_index == active_chaser
+                and distance_to_player < guard["chase_radius"]
+            )
             if guard["model_controlled"]:
                 self.request_ai_neighbor_target(guard, now)
                 if guard["ai_target"] is not None:
@@ -601,6 +728,8 @@ class GameplayMixin:
                         start = (int(guard["x"]), int(guard["z"]))
                         if start == guard["ai_target"]:
                             guard["path"] = []
+                            if guard["ai_mode"] == "patrol":
+                                guard["ai_target"] = None
                         else:
                             guard["path"] = self.shortest_path(
                                 start,
@@ -608,12 +737,10 @@ class GameplayMixin:
                             )
                         guard["repath_at"] = now + 0.5
                 elif now >= guard["repath_at"] or not guard["path"]:
-                    goal = self.guard_waypoints[guard["waypoint_index"]]
+                    goal = guard["patrol_target"]
                     if (int(guard["x"]), int(guard["z"])) == goal:
-                        guard["waypoint_index"] = (guard["waypoint_index"] + 1) % len(
-                            self.guard_waypoints
-                        )
-                        goal = self.guard_waypoints[guard["waypoint_index"]]
+                        goal = self.choose_guard_patrol_target(guard_index)
+                        guard["patrol_target"] = goal
                     guard["path"] = self.shortest_path(
                         (int(guard["x"]), int(guard["z"])),
                         goal,
@@ -623,23 +750,21 @@ class GameplayMixin:
                 if chasing:
                     goal = (int(self.player.x), int(self.player.z))
                 else:
-                    goal = self.guard_waypoints[guard["waypoint_index"]]
+                    goal = guard["patrol_target"]
                     if (int(guard["x"]), int(guard["z"])) == goal:
-                        guard["waypoint_index"] = (guard["waypoint_index"] + 1) % len(
-                            self.guard_waypoints
-                        )
-                        goal = self.guard_waypoints[guard["waypoint_index"]]
+                        goal = self.choose_guard_patrol_target(guard_index)
+                        guard["patrol_target"] = goal
                 guard["path"] = self.shortest_path(
                     (int(guard["x"]), int(guard["z"])),
                     goal,
                 )
                 guard["repath_at"] = now + 0.5
+            speed = guard["chase_speed"] if chasing else guard["speed"]
             if guard["path"]:
                 target_x, target_z = guard["path"][0]
                 dx = target_x + 0.5 - guard["x"]
                 dz = target_z + 0.5 - guard["z"]
                 distance = math.hypot(dx, dz)
-                speed = guard["chase_speed"] if chasing else guard["speed"]
                 step = min(speed * dt, distance)
                 if distance > 0:
                     guard["x"] += dx / distance * step
@@ -647,6 +772,30 @@ class GameplayMixin:
                     guard["root"].rotation_y = math.degrees(math.atan2(dx, dz))
                 if distance < 0.06:
                     guard["path"].pop(0)
+            elif chasing and (
+                int(guard["x"]),
+                int(guard["z"]),
+            ) == (int(self.player.x), int(self.player.z)):
+                dx = self.player.x - guard["x"]
+                dz = self.player.z - guard["z"]
+                distance = math.hypot(dx, dz)
+                step = min(speed * dt, distance)
+                if distance > 0:
+                    move_x = dx / distance * step
+                    move_z = dz / distance * step
+                    next_x = guard["x"] + move_x
+                    next_z = guard["z"] + move_z
+                    radius = 0.22
+                    if not any(
+                        self.is_wall(next_x + offset_x, next_z + offset_z)
+                        for offset_x in (-radius, radius)
+                        for offset_z in (-radius, radius)
+                    ):
+                        guard["x"] = next_x
+                        guard["z"] = next_z
+                        guard["root"].rotation_y = math.degrees(
+                            math.atan2(move_x, move_z)
+                        )
 
             gait = math.sin(now * 7 + guard["phase"]) * 24
             for limb, rotation in zip(
@@ -667,6 +816,8 @@ class GameplayMixin:
                 self.mission_time_bonus -= 10
                 self.set_message("Caught! You dropped a treat and lost 10 seconds.")
                 break
+
+        self.update_neighbor_greetings(now)
 
     def refresh_hud(self):
         self.next_hud_refresh = clock.monotonic() + 0.1

@@ -1,6 +1,6 @@
 from typing import Literal, Optional, TypedDict
 
-from ursina import Entity
+from ursina import Entity, Text
 
 Cell = tuple[int, int]
 SnackKind = Literal["lollipop", "fudge", "pumpkin"]
@@ -60,11 +60,13 @@ class GuardState(TypedDict):
     root: Entity
     head: Entity
     limbs: tuple[Entity, Entity, Entity, Entity]
+    greeting_bubble: Text
+    greeting_until: float
     x: float
     z: float
     path: list[Cell]
     repath_at: float
-    waypoint_index: int
+    patrol_target: Cell
     phase: float
     speed: float
     chase_speed: float
