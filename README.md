@@ -2,6 +2,8 @@
 
 A first-person 3D game built with Python and Ursina. The project includes its textures and other game assets.
 
+![Gameplay screenshot](screenshots/gameplay.png)
+
 ## Download
 
 You can either:
