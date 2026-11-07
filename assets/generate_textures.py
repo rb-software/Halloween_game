@@ -219,75 +219,6 @@ def make_stained_paper(rng):
     return image.filter(ImageFilter.GaussianBlur(0.3))
 
 
-def make_sky(rng):
-    width, height = 1024, 512
-    resampling = getattr(Image, "Resampling", Image).BICUBIC
-    image = Image.new("RGB", (width, height))
-    pixels = image.load()
-    top, horizon = (54, 132, 201), (197, 218, 225)
-    for y in range(height):
-        t = y / (height - 1)
-        blend = t * t * (3 - 2 * t)
-        haze = max(0.0, (t - 0.56) / 0.44)
-        row_color = tuple(
-            int(
-                top[channel] * (1 - blend)
-                + horizon[channel] * blend
-                + (9, 3, -4)[channel] * haze
-            )
-            for channel in range(3)
-        )
-        for x in range(width):
-            noise = rng.randrange(-2, 3)
-            pixels[x, y] = tuple(
-                max(0, min(255, channel + noise)) for channel in row_color
-            )
-
-    sun_x, sun_y = 765, 300
-    glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    glow_draw = ImageDraw.Draw(glow)
-    for radius, alpha in ((118, 10), (76, 18), (42, 36), (23, 90)):
-        glow_draw.ellipse(
-            (sun_x - radius, sun_y - radius, sun_x + radius, sun_y + radius),
-            fill=(255, 224, 164, alpha),
-        )
-    glow = glow.filter(ImageFilter.GaussianBlur(20))
-    image = Image.alpha_composite(image.convert("RGBA"), glow)
-
-    noise_layers = []
-    for noise_width, noise_height in ((32, 16), (64, 32), (128, 64)):
-        noise = Image.new("L", (noise_width, noise_height))
-        noise_pixels = noise.load()
-        for y in range(noise_height):
-            for x in range(noise_width):
-                noise_pixels[x, y] = rng.randrange(256)
-            noise_pixels[noise_width - 1, y] = noise_pixels[0, y]
-        noise_layers.append(noise.resize((width, height), resampling))
-    cloud_mask = Image.new("L", (width, height))
-    cloud_pixels = cloud_mask.load()
-    for y in range(height):
-        for x in range(width):
-            cloud_value = (
-                noise_layers[0].getpixel((x, y)) * 0.55
-                + noise_layers[1].getpixel((x, y)) * 0.3
-                + noise_layers[2].getpixel((x, y)) * 0.15
-            )
-            height_fade = min(1.0, max(0.0, (y - 125) / 45), max(0.0, (375 - y) / 55))
-            cloud_pixels[x, y] = int(
-                max(0, min(175, (cloud_value - 122) * 2.2)) * height_fade
-            )
-    cloud_mask = cloud_mask.filter(ImageFilter.GaussianBlur(1.8))
-    clouds = Image.new("RGBA", (width, height), (235, 241, 245, 0))
-    clouds.putalpha(cloud_mask)
-    image = Image.alpha_composite(image, clouds)
-    draw = ImageDraw.Draw(image)
-    draw.ellipse(
-        (sun_x - 13, sun_y - 13, sun_x + 13, sun_y + 13),
-        fill=(255, 245, 215, 240),
-    )
-    return image.convert("RGB")
-
-
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     rng = random.Random(SEED)
@@ -298,11 +229,9 @@ def main():
         "oxidized_metal.png": make_oxidized_metal(rng),
         "weathered_skin.png": make_skin(rng),
         "stained_paper.png": make_stained_paper(rng),
-        "overcast_sky.png": make_sky(rng),
     }
     for filename, image in textures.items():
-        if filename != "overcast_sky.png":
-            image = make_tileable(image)
+        image = make_tileable(image)
         image.save(OUTPUT_DIR / filename, format="PNG", optimize=True)
         print(f"Generated {filename}: {image.width}x{image.height}")
 

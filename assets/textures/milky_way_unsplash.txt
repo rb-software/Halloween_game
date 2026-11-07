@@ -1,0 +1,8 @@
+Image: Sky during nighttime
+Photographer: David Monje
+Source: https://unsplash.com/photos/n00dm9FBwrs
+Original image: https://images.unsplash.com/photo-1562571046-d34f606e7693 (5,000 x 7,500 pixels)
+License: Unsplash License
+License URL: https://unsplash.com/license
+Modifications: Rotated, cropped to remove the buildings and horizon, color-adjusted, seam-blended, and resized to a 4,096 x 2,048 equirectangular panorama. A narrow zenith cap is blended to prevent a polar mapping artifact. The full panorama is mapped onto the upper sky hemisphere.
+Note: The photograph shows the Milky Way, not the Andromeda Galaxy.

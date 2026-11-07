@@ -1,14 +1,12 @@
-import random
+import math
 
-from ursina import Entity, Text, color
+from ursina import Entity, Mesh, Text, color
 
-from .config import (
-    FOREST_TREE_CELLS,
-    TOWN_HEIGHT,
-)
+from .config import TOWN_HEIGHT
 from .geometry import (
     create_mist_texture,
     create_ocean_mesh,
+    create_ship_hull_mesh,
     enable_alpha_blending,
 )
 
@@ -32,40 +30,10 @@ class WorldNatureBuilder:
             position=(17.5, 0.012, (TOWN_HEIGHT + 45) / 2),
             scale=(4.4, 1, 45 - TOWN_HEIGHT),
             color=color.rgb(133, 119, 88),
-            texture=self.sidewalk_texture,
+            texture=self.concrete_texture,
             double_sided=True,
         )
         trail.texture_scale = (1, 7)
-        rng = random.Random(1986)
-        foliage_colors = (
-            color.rgb(43, 75, 54),
-            color.rgb(51, 86, 60),
-            color.rgb(58, 91, 62),
-            color.rgb(65, 96, 66),
-        )
-        for x, z in FOREST_TREE_CELLS:
-            center_x, center_z = x + 0.5, z + 0.5
-            height = rng.uniform(6.8, 9.0)
-            Entity(
-                model=self.cylinder_model,
-                position=(center_x, height * 0.2, center_z),
-                scale=(0.42, height * 0.4, 0.42),
-                color=color.rgb(91, 69, 49),
-                texture=self.wood_texture,
-            )
-            for tier, (height_fraction, width_fraction) in enumerate(
-                ((0.38, 0.48), (0.58, 0.39), (0.77, 0.29))
-            ):
-                Entity(
-                    model=self.cone_model,
-                    position=(center_x, height * height_fraction, center_z),
-                    scale=(
-                        height * width_fraction,
-                        height * 0.5,
-                        height * width_fraction,
-                    ),
-                    color=foliage_colors[(tier + x + z) % len(foliage_colors)],
-                )
         self.build_campfire()
         mist_texture = create_mist_texture()
         self.fog_banks = []
@@ -105,6 +73,7 @@ class WorldNatureBuilder:
         self.ocean.set_shader_input("fog_color", self.fog_color)
         self.ocean.set_shader_input("fog_density", self.fog_density)
         self.ocean.set_shader_input("water_time", 0.0)
+        self.build_ocean_ships()
 
         for x, z, label in ((2.5, 6.5, "THE ESTATE"), (13.5, 2.5, "PSS")):
             sign = Entity(
@@ -121,4 +90,117 @@ class WorldNatureBuilder:
                 scale=5,
                 color=color.rgb(220, 198, 147),
                 position=(0, 0, -0.56),
+            )
+
+    def build_ocean_ships(self):
+        ship_colors = (
+            color.rgb(104, 55, 42),
+            color.rgb(73, 83, 87),
+            color.rgb(94, 72, 47),
+        )
+        sail_colors = (
+            color.rgb(220, 207, 165),
+            color.rgb(183, 199, 193),
+            color.rgb(204, 187, 145),
+        )
+        self.ocean_ships = []
+        for index, (x, z, size) in enumerate(
+            ((5.5, -12.0, 1.0), (25.5, -27.0, 0.82), (13.5, -49.0, 1.18))
+        ):
+            heading = (-12, 14, -7)[index]
+            ship = Entity(
+                position=(x, 0.12, z),
+                rotation_y=heading,
+                scale=size,
+            )
+            Entity(
+                parent=ship,
+                model=create_ship_hull_mesh(),
+                position=(0, 0, 0),
+                color=ship_colors[index],
+                double_sided=True,
+            )
+            Entity(
+                parent=ship,
+                model="cube",
+                position=(0, 0.43, 0),
+                scale=(3.55, 0.1, 0.94),
+                color=color.rgb(157, 127, 83),
+            )
+            Entity(
+                parent=ship,
+                model=self.cylinder_model,
+                position=(0, 1.85, 0),
+                scale=(0.09, 3.7, 0.09),
+                color=color.rgb(100, 79, 56),
+                texture=self.wood_texture,
+            )
+            Entity(
+                parent=ship,
+                model=self.cylinder_model,
+                position=(0, 2.15, 0),
+                rotation_z=90,
+                scale=(0.055, 2.55, 0.055),
+                color=color.rgb(100, 79, 56),
+                texture=self.wood_texture,
+            )
+            for vertices, sail_position in (
+                (
+                    ((0, 0, 0), (0, 2.05, 0), (-1.35, 0.12, 0)),
+                    (0, 0.42, -0.07),
+                ),
+                (
+                    ((0, 0, 0), (0, 1.65, 0), (1.05, 0.12, 0)),
+                    (0, 0.55, -0.08),
+                ),
+            ):
+                Entity(
+                    parent=ship,
+                    model=Mesh(
+                        vertices=vertices,
+                        triangles=((0, 1, 2),),
+                        uvs=((0, 0), (0.5, 1), (1, 0)),
+                        static=True,
+                    ),
+                    position=sail_position,
+                    color=sail_colors[index],
+                    double_sided=True,
+                )
+            Entity(
+                parent=ship,
+                model="cube",
+                position=(1.45, 0.75, 0),
+                scale=(0.68, 0.55, 0.72),
+                color=color.rgb(131, 118, 91),
+            )
+            Entity(
+                parent=ship,
+                model="cube",
+                position=(1.45, 1.04, 0),
+                scale=(0.75, 0.08, 0.78),
+                color=color.rgb(87, 67, 48),
+            )
+            self.ocean_ships.append(
+                {
+                    "entity": ship,
+                    "x": x,
+                    "y": 0.12,
+                    "z": z,
+                    "heading": heading,
+                    "phase": index * 2.2,
+                    "speed": 0.42 + index * 0.08,
+                    "direction": 1 if index % 2 == 0 else -1,
+                    "roll": (-1, 1, -1)[index],
+                }
+            )
+
+    def update_ocean_ships(self, now):
+        for ship in self.ocean_ships:
+            phase = now * ship["speed"] + ship["phase"]
+            ship["entity"].x = ship["x"] + math.sin(phase * 0.32) * 3.2
+            ship["entity"].y = ship["y"] + math.sin(phase) * 0.18
+            ship["entity"].z = ship["z"] + math.cos(phase * 0.32) * 2.2
+            ship["entity"].rotation_z = math.sin(phase * 0.8) * 2.0
+            ship["entity"].rotation_y = ship["heading"] + (
+                math.sin(phase) * ship["roll"] * 2.0
             )

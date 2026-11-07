@@ -1,9 +1,12 @@
+import math
 import random
 from copy import deepcopy
 
-from ursina import Entity, color
+from ursina import Entity, Mesh, Text, color
 
 from .config import (
+    PACKAGE_RETURN_POSITION,
+    PACKAGE_RETURN_RADIUS,
     PLAZA_CENTER,
     POLICE_CAR_POSITION,
     TOWN_HEIGHT,
@@ -11,6 +14,32 @@ from .config import (
 from .geometry import (
     enable_alpha_blending,
 )
+
+
+def create_package_return_ring_mesh(radius, thickness, segments=48):
+    vertices = []
+    triangles = []
+    inner_radius = radius - thickness
+    for index in range(segments):
+        angle = math.tau * index / segments
+        cosine, sine = math.cos(angle), math.sin(angle)
+        vertices.extend(
+            (
+                (inner_radius * cosine, 0, inner_radius * sine),
+                (radius * cosine, 0, radius * sine),
+            )
+        )
+
+    for index in range(segments):
+        current = index * 2
+        following = ((index + 1) % segments) * 2
+        triangles.extend(
+            (
+                (current, following, following + 1),
+                (current, following + 1, current + 1),
+            )
+        )
+    return Mesh(vertices=vertices, triangles=triangles, static=True)
 
 
 class WorldCityBuilder:
@@ -24,36 +53,6 @@ class WorldCityBuilder:
             double_sided=True,
         )
         ground.texture_scale = (self.map_width / 5, self.map_height / 5)
-
-        road_cells = {
-            (x, z)
-            for z in range(self.map_height)
-            for x in range(self.map_width)
-            if abs(z - 13) <= 2 or abs(x - 17) <= 3 or abs(x - 26) <= 2
-        }
-        sidewalk_cells = set()
-        for z in range(TOWN_HEIGHT):
-            for x in range(self.map_width):
-                if self.grid[z][x] == "#":
-                    continue
-                if (x, z) in road_cells:
-                    continue
-                if any(
-                    self.is_wall(x + dx, z + dz)
-                    for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1))
-                ) or (abs(z - 13) == 2 or abs(x - 17) == 3 or abs(x - 26) == 2):
-                    sidewalk_cells.add((x, z))
-
-        for x, z in sorted(sidewalk_cells):
-            slab = Entity(
-                model=deepcopy(self.displaced_concrete_model),
-                position=(x + 0.5, -0.012, z + 0.5),
-                scale=(0.99, 0.035, 0.99),
-                color=color.rgb(226, 224, 211),
-                texture=self.sidewalk_texture,
-            )
-            slab.texture_scale = (1, 1)
-            self.apply_surface_material(slab, "concrete")
 
         self.build_road_network()
 
@@ -228,6 +227,52 @@ class WorldCityBuilder:
         )
         plaza.texture_scale = (4, 4)
         self.apply_surface_material(plaza, "paving")
+        return_x, return_z = PACKAGE_RETURN_POSITION
+        self.package_return_position = PACKAGE_RETURN_POSITION
+        Entity(
+            name="package_return_zone",
+            model=create_package_return_ring_mesh(PACKAGE_RETURN_RADIUS, 0.16),
+            position=(return_x, 0.035, return_z),
+            color=color.rgb(255, 190, 55),
+            unlit=True,
+            double_sided=True,
+        )
+        return_station = Entity(
+            name="package_return_station",
+            position=(return_x, 0, return_z),
+        )
+        Entity(
+            parent=return_station,
+            model="cube",
+            position=(0, 0.48, 0),
+            scale=(0.9, 0.9, 0.72),
+            color=color.rgb(69, 86, 73),
+            texture=self.wood_texture,
+        )
+        Entity(
+            parent=return_station,
+            model="cube",
+            position=(0, 0.96, 0),
+            scale=(1.02, 0.12, 0.82),
+            color=color.rgb(214, 172, 74),
+            texture=self.metal_texture,
+        )
+        Entity(
+            parent=return_station,
+            model="cube",
+            position=(0, 0.82, -0.37),
+            scale=(0.55, 0.08, 0.035),
+            color=color.rgb(26, 34, 30),
+        )
+        Text(
+            parent=return_station,
+            text="PACKAGE\nRETURN",
+            position=(0, 1.48, 0),
+            origin=(0, 0),
+            scale=3.5,
+            color=color.rgb(255, 215, 120),
+            billboard=True,
+        )
         car_x, car_z = POLICE_CAR_POSITION
         for side in (-1, 1):
             Entity(
@@ -428,8 +473,6 @@ class WorldCityBuilder:
             )
 
         for x, z in (
-            (3.0, 7.2),
-            (10.0, 3.3),
             (15.0, 9.8),
             (18.5, 11.5),
             (23.5, 11.5),

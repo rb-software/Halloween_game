@@ -1,9 +1,0 @@
-Image: Panorama of Spiral Galaxy, M31
-Source: https://noirlab.edu/public/images/noao-m31lgs_ubvIha
-Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Panorama_of_Spiral_Galaxy,_M31_(noao-m31lgs_ubvIha).jpg
-Original resolution: 48,327 x 12,185 pixels
-Bundled image: 3,840 x 968 pixels, downsampled from the full-resolution original
-Credit: Local Group Survey Team and T.A. Rector (University of Alaska Anchorage) / NOIRLab / NSF / AURA
-License: Creative Commons Attribution 4.0 International (CC BY 4.0)
-License URL: https://creativecommons.org/licenses/by/4.0/
-Modifications: Resized and blended with a generated night sky.

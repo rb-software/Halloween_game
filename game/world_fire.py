@@ -4,6 +4,7 @@ import random
 from ursina import Entity, PointLight, color
 
 from .config import (
+    CAMPFIRE_POSITION,
     HOUSE_POSITIONS,
     HOUSE_ROTATIONS,
 )
@@ -17,7 +18,9 @@ from .geometry import (
 
 class WorldFireBuilder:
     def build_campfire(self):
-        x, z = 21.5, 35.5
+        x, z = CAMPFIRE_POSITION
+        spark_texture = create_spark_texture()
+        self.build_campfire_clearing(x, z, spark_texture)
         for offset, rotation_x, rotation_z in (
             (-0.16, 0, 90),
             (0.16, 0, 90),
@@ -69,7 +72,6 @@ class WorldFireBuilder:
                 {"entity": flame, "scale": scale, "phase": index * 1.7}
             )
         self.fire_particle_rng = random.Random(1987)
-        spark_texture = create_spark_texture()
         self.fire_particles = []
         for _ in range(24):
             particle = Entity(
@@ -99,6 +101,95 @@ class WorldFireBuilder:
             color=color.rgb(255, 126, 52),
         )
         self.fire_light.enabled = True
+
+    def build_campfire_clearing(self, x, z, spark_texture):
+        rng = random.Random(1988)
+
+        for offset_x, offset_z, along_x in (
+            (-2.5, -0.8, False),
+            (2.5, -0.8, False),
+            (0, 2.6, True),
+        ):
+            bench_x, bench_z = x + offset_x, z + offset_z
+            rotation = (0, 0, 90) if along_x else (90, 0, 0)
+            Entity(
+                model=self.cylinder_model,
+                position=(bench_x, 0.47, bench_z),
+                rotation=rotation,
+                scale=(0.18, 1.5, 0.18),
+                color=color.rgb(105, 73, 48),
+                texture=self.wood_texture,
+            )
+            for end in (-0.54, 0.54):
+                leg_x = bench_x + (end if along_x else 0)
+                leg_z = bench_z + (0 if along_x else end)
+                Entity(
+                    model=self.cylinder_model,
+                    position=(leg_x, 0.22, leg_z),
+                    scale=(0.16, 0.44, 0.16),
+                    color=color.rgb(83, 59, 41),
+                    texture=self.wood_texture,
+                )
+
+        self.campfire_fireflies = []
+        for _ in range(12):
+            phase = rng.uniform(0, math.tau)
+            glow = Entity(
+                model="quad",
+                texture=spark_texture,
+                position=(x, 1, z),
+                scale=0.3,
+                color=color.rgba(181, 255, 126, 0),
+                billboard=True,
+                double_sided=True,
+                unlit=True,
+            )
+            glow.set_light_off()
+            enable_alpha_blending(glow)
+            orb = Entity(
+                model="sphere",
+                position=(x, 1, z),
+                scale=0.08,
+                color=color.rgb(190, 255, 132),
+                unlit=True,
+            )
+            orb.set_light_off()
+            self.campfire_fireflies.append(
+                {
+                    "glow": glow,
+                    "orb": orb,
+                    "radius_x": rng.uniform(2.0, 4.1),
+                    "radius_z": rng.uniform(1.7, 3.7),
+                    "height": rng.uniform(0.7, 2.8),
+                    "phase": phase,
+                    "speed": rng.uniform(0.35, 0.8),
+                    "drift": rng.uniform(0.6, 1.2),
+                }
+            )
+
+    def update_campfire_ambience(self, now):
+        x, z = CAMPFIRE_POSITION
+        for firefly in self.campfire_fireflies:
+            phase = now * firefly["speed"] + firefly["phase"]
+            x_pos = x + math.cos(phase) * firefly["radius_x"]
+            z_pos = z + math.sin(phase * firefly["drift"]) * firefly["radius_z"]
+            y_pos = firefly["height"] + math.sin(phase * 1.6) * 0.35
+            pulse = 0.5 + 0.5 * math.sin(now * 5 + firefly["phase"])
+            firefly["glow"].position = (x_pos, y_pos, z_pos)
+            firefly["glow"].scale = 0.18 + pulse * 0.25
+            firefly["glow"].color = color.rgba(
+                181,
+                255,
+                126,
+                int(30 + pulse * 150),
+            )
+            firefly["orb"].position = (x_pos, y_pos, z_pos)
+            firefly["orb"].scale = 0.035 + pulse * 0.055
+            firefly["orb"].color = color.rgb(
+                int(114 + pulse * 90),
+                180 + int(pulse * 75),
+                int(68 + pulse * 64),
+            )
 
     def reset_fire_particle(self, particle, x, z, randomize_age=False):
         rng = self.fire_particle_rng

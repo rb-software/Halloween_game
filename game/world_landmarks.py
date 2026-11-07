@@ -77,11 +77,87 @@ class WorldLandmarkBuilder:
                 color=color.rgb(159, 147, 118),
                 texture=self.stone_texture,
             )
+        for side_x in (-1, 1):
+            for side_z in (-1, 1):
+                Entity(
+                    model="cube",
+                    position=(x + side_x * 2.42, 7.0, z + side_z * 1.94),
+                    scale=(0.28, 13.5, 0.28),
+                    color=stone,
+                    texture=self.stone_texture,
+                )
+        for level in range(1, 6):
+            band_y = level * 2.5
+            Entity(
+                model="cube",
+                position=(x, band_y, z - 2.16),
+                scale=(5.4, 0.14, 0.16),
+                color=stone,
+                texture=self.stone_texture,
+            )
+        Entity(
+            model="sphere",
+            position=(x, 17.68, z - 1.56),
+            scale=(1.34, 1.34, 0.16),
+            color=color.rgb(69, 72, 66),
+            unlit=True,
+        )
+        Entity(
+            model="sphere",
+            position=(x, 17.68, z - 1.66),
+            scale=(1.13, 1.13, 0.1),
+            color=color.rgb(219, 205, 166),
+            unlit=True,
+        )
+        Entity(
+            model="cube",
+            position=(x, 17.91, z - 1.73),
+            scale=(0.045, 0.48, 0.035),
+            color=color.rgb(47, 51, 47),
+        )
+        Entity(
+            model="cube",
+            position=(x + 0.15, 17.69, z - 1.73),
+            scale=(0.32, 0.045, 0.035),
+            rotation_z=-32,
+            color=color.rgb(47, 51, 47),
+        )
+        Text(
+            text="XII",
+            position=(x, 18.32, z - 1.75),
+            origin=(0, 0),
+            scale=1.2,
+            color=color.rgb(56, 58, 51),
+        )
+        for side_x in (-1, 1):
+            for side_z in (-1, 1):
+                Entity(
+                    model=self.cone_model,
+                    position=(x + side_x * 0.95, 18.82, z + side_z * 0.95),
+                    scale=(0.34, 0.82, 0.34),
+                    color=stone,
+                    texture=self.stone_texture,
+                )
+        Entity(
+            model=self.cone_model,
+            position=(x, 19.18, z),
+            scale=(0.62, 1.25, 0.62),
+            color=color.rgb(74, 81, 76),
+            texture=self.metal_texture,
+        )
+        Entity(
+            model="sphere",
+            position=(x, 19.88, z),
+            scale=0.2,
+            color=color.rgb(255, 190, 92),
+            unlit=True,
+        )
 
     def build_police_car(self):
         x, z = POLICE_CAR_POSITION
         root = Entity(position=(x, 0, z), rotation_y=180)
-        paint = color.rgb(207, 200, 175)
+        paint = color.rgb(22, 66, 126)
+        white_paint = color.rgb(222, 226, 225)
         Entity(
             parent=root,
             model=create_section_mesh(
@@ -99,6 +175,13 @@ class WorldLandmarkBuilder:
         )
         Entity(
             parent=root,
+            model="cube",
+            position=(0, 1.475, 0.02),
+            scale=(1.14, 0.055, 1.48),
+            color=white_paint,
+        )
+        Entity(
+            parent=root,
             model=create_section_mesh(
                 (
                     (-1.02, 0.64, 0.83, 1.30),
@@ -107,7 +190,7 @@ class WorldLandmarkBuilder:
                     (0.98, 0.60, 0.79, 1.10),
                 )
             ),
-            color=paint,
+            color=white_paint,
             double_sided=True,
         )
 
@@ -119,6 +202,13 @@ class WorldLandmarkBuilder:
             color=color.rgb(79, 83, 72),
         )
         for side in (-1, 1):
+            Entity(
+                parent=root,
+                model="cube",
+                position=(side * 0.895, 0.69, 0.05),
+                scale=(0.035, 0.16, 1.8),
+                color=white_paint,
+            )
             Entity(
                 parent=root,
                 model="cube",
@@ -255,13 +345,22 @@ class WorldLandmarkBuilder:
             (
                 Text(
                     parent=root,
-                    text="CIVIL MILITIA",
+                    text="POLICJA",
                     origin=(0, 0),
-                    scale=0.9,
-                    color=color.rgb(52, 54, 48),
+                    scale=1.1,
+                    color=color.rgb(248, 248, 238),
                     position=(side * 0.90, 0.78, 0.04),
                     rotation=(0, 90, 0),
                 ),
+            )
+            Text(
+                parent=root,
+                text="RADIOWÓZ",
+                origin=(0, 0),
+                scale=0.58,
+                color=color.rgb(244, 246, 248),
+                position=(side * 0.91, 0.58, 0.04),
+                rotation=(0, 90, 0),
             )
         for side in (-1, 1):
             Entity(

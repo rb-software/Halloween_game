@@ -39,6 +39,7 @@ from ursina import (
 
 from .config import (
     AMBIENTCG_DIR,
+    CAMPFIRE_POSITION,
     MISSION_SECONDS,
     PLAYER_START,
     PLAYER_START_ROTATION,
@@ -47,7 +48,7 @@ from .config import (
 )
 from .entities import EntityBuilder
 from .gameplay import GameplayMixin
-from .geometry import add_andromeda_to_sky
+from .geometry import create_sky_hemisphere_mesh, enable_alpha_blending
 from .shaders import (
     create_ambient_occlusion_shader,
     create_material_shader,
@@ -63,6 +64,13 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             fullscreen=False,
             borderless=False,
         )
+        graphics_state = self.app.win.getGsg()
+        if graphics_state is not None:
+            print(
+                "Graphics renderer: "
+                f"{graphics_state.getDriverRenderer()} "
+                f"({graphics_state.getDriverVendor()})"
+            )
         self.ao_enabled = False
         self.ao_available = None
         self.ao_filter_manager = None
@@ -77,7 +85,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         self.ai_generation = 0
         window.size = (1280, 720)
         window.title = "The Estate: The Last Run — 1986"
-        window.color = color.rgb(48, 58, 64)
+        window.color = color.rgb(3, 7, 13)
         window.fps_counter.enabled = True
         window.exit_button.visible = False
         camera.fov = 79
@@ -105,7 +113,6 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             self.ground_texture,
             self.stone_texture,
             self.concrete_texture,
-            self.sidewalk_texture,
             self.roof_texture,
             self.brick_texture,
             self.paving_texture,
@@ -133,20 +140,23 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         self.displaced_wall_model = self.create_displaced_box(
             AMBIENTCG_DIR / "Plaster001_1K-JPG_Displacement.jpg",
             AMBIENTCG_DIR / "Plaster001_1K-JPG_NormalGL.jpg",
-            resolution=40,
+            resolution=12,
             amplitude=0.006,
+            surface_relief=0.012,
         )
         self.brick_wall_model = self.create_displaced_box(
             AMBIENTCG_DIR / "Bricks055_1K-JPG_Displacement.jpg",
             AMBIENTCG_DIR / "Bricks055_1K-JPG_NormalGL.jpg",
-            resolution=40,
+            resolution=12,
             amplitude=0.012,
+            surface_relief=0.016,
         )
         self.displaced_concrete_model = self.create_displaced_box(
             AMBIENTCG_DIR / "Concrete019_1K-JPG_Displacement.jpg",
             AMBIENTCG_DIR / "Concrete019_1K-JPG_NormalGL.jpg",
             resolution=12,
             amplitude=0.004,
+            surface_relief=0.006,
         )
         self.displaced_asphalt_model = self.create_displaced_plane(
             AMBIENTCG_DIR / "Asphalt001_1K-JPG_Displacement.jpg",
@@ -155,7 +165,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         self.paving_model = self.create_displaced_plane(
             AMBIENTCG_DIR / "PavingStones036_1K-JPG_Displacement.jpg",
             AMBIENTCG_DIR / "PavingStones036_1K-JPG_NormalGL.jpg",
-            resolution=72,
+            resolution=36,
             amplitude=0.012,
             tiling=3,
         )
@@ -172,10 +182,10 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         self.photo_mode = False
         self.ambient = AmbientLight(color=color.rgba(197, 202, 206, 255))
         self.sunlight = DirectionalLight(
-            color=color.rgb(255, 241, 218),
+            color=color.rgb(255, 225, 190),
             rotation=(48, -34, 0),
             shadows=self.photo_mode,
-            shadow_map_resolution=Vec2(2048, 2048),
+            shadow_map_resolution=Vec2(1024, 1024),
         )
         self.torch = PointLight(
             parent=camera,
@@ -187,6 +197,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
 
         self.make_sky()
         self.build_world()
+        self.build_ufo()
         self.build_forest()
         self.build_coastline()
         self.build_plaza()
@@ -262,13 +273,157 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
 
     def make_sky(self):
         self.sky = Entity(
-            model="sphere",
-            scale=350,
+            model=create_sky_hemisphere_mesh(),
+            scale=240,
             color=color.white,
             double_sided=True,
             unlit=True,
             texture=self.sky_texture,
         )
+        self.sky.position = camera.world_position
+        self.sky.setFogOff()
+        self.build_sky_effects()
+
+    def build_sky_effects(self):
+        rng = random.Random(1986)
+        self.sky_effect_rng = rng
+        self.sky_effect_time = 0.0
+        self.sky_star_update_elapsed = 0.0
+        self.twinkling_stars = []
+        for _ in range(54):
+            angle = rng.uniform(0, math.tau)
+            distance = rng.uniform(86, 108)
+            offset_x = math.sin(angle) * distance
+            offset_z = math.cos(angle) * distance
+            size = rng.uniform(0.18, 0.38)
+            star = Entity(
+                parent=scene,
+                model="sphere",
+                position=(
+                    self.player.x + offset_x,
+                    self.player.y + rng.uniform(25, 52),
+                    self.player.z + offset_z,
+                ),
+                scale=size,
+                color=color.rgb(220, 229, 255),
+                unlit=True,
+            )
+            star.set_light_off()
+            self.twinkling_stars.append(
+                {
+                    "entity": star,
+                    "offset_x": offset_x,
+                    "offset_z": offset_z,
+                    "height": star.y - self.player.y,
+                    "size": size,
+                    "phase": rng.uniform(0, math.tau),
+                    "speed": rng.uniform(1.4, 3.2),
+                    "brightness": rng.uniform(0.72, 1.0),
+                }
+            )
+
+        self.sky_comets = []
+        for _ in range(2):
+            tail = Entity(
+                parent=scene,
+                model="quad",
+                scale=(8.5, 0.12, 1),
+                color=color.rgba(177, 211, 255, 190),
+                billboard=True,
+                double_sided=True,
+                unlit=True,
+                enabled=False,
+            )
+            enable_alpha_blending(tail)
+            head = Entity(
+                parent=scene,
+                model="sphere",
+                scale=0.34,
+                color=color.rgb(255, 245, 215),
+                unlit=True,
+                enabled=False,
+            )
+            head.set_light_off()
+            self.sky_comets.append(
+                {
+                    "tail": tail,
+                    "head": head,
+                    "delay": rng.uniform(1.0, 7.0),
+                    "age": 0.0,
+                    "active": False,
+                    "duration": rng.uniform(2.8, 4.2),
+                    "direction": rng.choice((-1, 1)),
+                    "height": rng.uniform(34, 45),
+                }
+            )
+
+    def update_sky_effects(self, dt):
+        self.sky_effect_time += dt
+        now = self.sky_effect_time
+        self.sky_star_update_elapsed += dt
+        if self.sky_star_update_elapsed >= 0.1:
+            self.sky_star_update_elapsed %= 0.1
+            for star in self.twinkling_stars:
+                pulse = 0.42 + 0.58 * (
+                    0.5 + 0.5 * math.sin(now * star["speed"] + star["phase"])
+                )
+                brightness = star["brightness"] * pulse
+                star["entity"].position = (
+                    self.player.x + star["offset_x"],
+                    self.player.y + star["height"],
+                    self.player.z + star["offset_z"],
+                )
+                star["entity"].scale = star["size"] * (0.65 + pulse * 0.55)
+                star["entity"].color = color.rgb(
+                    int(170 * brightness),
+                    int(195 * brightness),
+                    int(255 * brightness),
+                )
+
+        yaw = math.radians(self.player.rotation_y)
+        forward_x, forward_z = math.sin(yaw), math.cos(yaw)
+        right_x, right_z = math.cos(yaw), -math.sin(yaw)
+        for comet in self.sky_comets:
+            if not comet["active"]:
+                comet["delay"] -= dt
+                if comet["delay"] > 0:
+                    continue
+                comet["active"] = True
+                comet["age"] = 0.0
+                comet["tail"].enabled = True
+                comet["head"].enabled = True
+            comet["age"] += dt
+            progress = comet["age"] / comet["duration"]
+            if progress >= 1:
+                comet["tail"].enabled = False
+                comet["head"].enabled = False
+                comet["active"] = False
+                comet["delay"] = self.sky_effect_rng.uniform(7.0, 15.0)
+                comet["duration"] = self.sky_effect_rng.uniform(2.8, 4.2)
+                comet["direction"] = self.sky_effect_rng.choice((-1, 1))
+                comet["height"] = self.sky_effect_rng.uniform(34, 45)
+                continue
+
+            direction = comet["direction"]
+            lateral = direction * (progress * 210 - 105)
+            height = comet["height"] - progress * 8
+            distance = 95
+            comet_x = self.player.x + forward_x * distance + right_x * lateral
+            comet_z = self.player.z + forward_z * distance + right_z * lateral
+            comet_y = self.player.y + height
+            tail_lateral = lateral - direction * 4.5
+            tail_y = comet_y + 0.35
+            comet["head"].position = (comet_x, comet_y, comet_z)
+            comet["tail"].position = (
+                self.player.x
+                + forward_x * distance
+                + right_x * tail_lateral,
+                tail_y,
+                self.player.z
+                + forward_z * distance
+                + right_z * tail_lateral,
+            )
+            comet["tail"].rotation = (0, self.player.rotation_y, -direction * 12)
 
     @staticmethod
     def create_material_maps():
@@ -307,6 +462,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         normal_map_path,
         resolution=32,
         amplitude=0.008,
+        surface_relief=0.0,
     ):
         with PILImage.open(height_map_path) as source:
             height_map = source.convert("L").filter(PILImageFilter.GaussianBlur(1.5))
@@ -338,6 +494,14 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             py = min(height - 1, int(v * height))
             return (pixels[px, py] / 255.0 - 0.5) * amplitude
 
+        def sample_displacement(u, v, face_index):
+            phase = face_index * 0.73
+            broad_wave = math.sin(math.tau * (u * 1.7 + v * 0.55) + phase)
+            cross_wave = math.sin(math.tau * (v * 2.3 - u * 0.8) - phase * 0.61)
+            return sample_height(u, v) + surface_relief * (
+                broad_wave * 0.62 + cross_wave * 0.38
+            )
+
         def sample_normal(u, v):
             u = (u * tiling) % 1.0
             v = (v * tiling) % 1.0
@@ -345,18 +509,20 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             py = min(normal_height - 1, int(v * normal_height))
             return tuple(channel / 127.5 - 1.0 for channel in normal_pixels[px, py])
 
-        for normal, axis_u, axis_v in faces:
+        for face_index, (normal, axis_u, axis_v) in enumerate(faces):
             start = len(vertices)
             for row in range(resolution + 1):
                 v = row / resolution
                 for column in range(resolution + 1):
                     u = column / resolution
-                    displacement = sample_height(u, v)
+                    displacement = sample_displacement(u, v, face_index)
                     du = (
-                        sample_height(u + uv_step, v) - sample_height(u - uv_step, v)
+                        sample_displacement(u + uv_step, v, face_index)
+                        - sample_displacement(u - uv_step, v, face_index)
                     ) / (2 * uv_step)
                     dv = (
-                        sample_height(u, v + uv_step) - sample_height(u, v - uv_step)
+                        sample_displacement(u, v + uv_step, face_index)
+                        - sample_displacement(u, v - uv_step, face_index)
                     ) / (2 * uv_step)
                     map_normal = sample_normal(u, v)
                     point = tuple(
@@ -473,14 +639,25 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         entity.set_shader_input("shadow_strength", float(self.photo_mode))
         entity.set_shader_input("environment_map", self.sky_texture)
         entity.set_shader_input(
+            "mesh_relief",
+            {
+                "asphalt": 0.0015,
+                "paving": 0.002,
+                "concrete": 0.004,
+                "roofing": 0.0035,
+                "plaster": 0.004,
+                "brick": 0.0055,
+            }[material],
+        )
+        entity.set_shader_input(
             "reflection_strength",
             {
-                "asphalt": 0.22,
-                "paving": 0.16,
-                "concrete": 0.09,
-                "roofing": 0.10,
-                "plaster": 0.045,
-                "brick": 0.04,
+                "asphalt": 0.68,
+                "paving": 0.50,
+                "concrete": 0.24,
+                "roofing": 0.38,
+                "plaster": 0.10,
+                "brick": 0.085,
             }[material],
         )
         entity.set_shader_input(
@@ -519,6 +696,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
                 self.ao_quad.setShader(create_ambient_occlusion_shader())
                 self.ao_quad.setShaderInput("scene_color", self.ao_color_texture)
                 self.ao_quad.setShaderInput("scene_depth", self.ao_depth_texture)
+                self.ao_quad.setShaderInput("cinematic_enabled", 0.0)
                 self.ao_quad.setShaderInput(
                     "inverse_resolution",
                     Vec2(
@@ -546,23 +724,31 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
 
     def set_photo_mode(self, enabled):
         self.photo_mode = enabled
-        self.sunlight.shadows = enabled
-        self.set_ambient_occlusion(enabled)
-        if enabled:
-            self.sunlight.update_bounds(self.shadow_bounds)
+        self._apply_quality_effects()
         self.ambient.color = (
-            color.rgba(180, 187, 193, 255)
+            color.rgba(166, 181, 202, 255)
             if enabled
             else color.rgba(197, 202, 206, 255)
         )
-        for entity in self.pbr_entities:
-            entity.set_shader_input("shadow_strength", float(enabled))
         self.set_message(
-            "Photo mode on — shadows and ambient occlusion enabled."
+            "Quality mode on — cinematic lighting and color enabled."
             if enabled
-            else "Performance mode on — shadows and AO disabled.",
+            else "Performance mode on — lighter lighting enabled.",
             2,
         )
+
+    def _apply_quality_effects(self):
+        self.sunlight.shadows = self.photo_mode
+        self.set_ambient_occlusion(self.photo_mode)
+        if self.ao_available:
+            self.ao_quad.setShaderInput(
+                "cinematic_enabled",
+                float(self.photo_mode),
+            )
+        if self.photo_mode:
+            self.sunlight.update_bounds(self.shadow_bounds)
+        for entity in self.pbr_entities:
+            entity.set_shader_input("shadow_strength", float(self.photo_mode))
 
     def build_hud(self):
         self.title_text = Text(
@@ -578,7 +764,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
         )
         self.controls_text = Text(
             text=(
-                "WASD move | Mouse look | SHIFT sprint | E interact | "
+                "WASD move | Mouse look | SHIFT sprint | E collect/return | "
                 "Q share a treat | F flashlight\n"
                 "TAB map | U audio | P graphics | R release cursor | "
                 "ENTER restart | ESC quit"
@@ -626,7 +812,6 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             AMBIENTCG_DIR / "Asphalt001_1K-JPG_Color.jpg",
             TEXTURE_DIR / "cobblestone.png",
             AMBIENTCG_DIR / "Concrete019_1K-JPG_Color.jpg",
-            AMBIENTCG_DIR / "Concrete019_1K-JPG_Color.jpg",
             AMBIENTCG_DIR / "RoofingTiles001_1K-JPG_Color.jpg",
             AMBIENTCG_DIR / "Bricks055_1K-JPG_Color.jpg",
             AMBIENTCG_DIR / "PavingStones036_1K-JPG_Color.jpg",
@@ -635,29 +820,25 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             TEXTURE_DIR / "oxidized_metal.png",
             TEXTURE_DIR / "weathered_skin.png",
             TEXTURE_DIR / "stained_paper.png",
-            TEXTURE_DIR / "overcast_sky.png",
+            TEXTURE_DIR / "milky_way_unsplash.jpg",
         )
-        galaxy_path = TEXTURE_DIR / "andromeda_noirlab_3840.jpg"
-        missing = [path for path in (*files, galaxy_path) if not path.is_file()]
+        missing = [path for path in files if not path.is_file()]
         if missing:
             names = ", ".join(str(path) for path in missing)
             raise FileNotFoundError(
                 f"Missing game textures: {names}. "
                 "Restore the listed texture assets before launching the game."
             )
-        textures = [Texture(str(path)) for path in files[:-1]]
-        with PILImage.open(files[-1]) as sky_source, PILImage.open(
-            galaxy_path
-        ) as galaxy_source:
-            textures.append(
-                Texture(add_andromeda_to_sky(sky_source, galaxy_source))
-            )
+        textures = [Texture(str(path)) for path in files]
         return tuple(textures)
 
     def update(self):
         now = clock.monotonic()
         dt = min(time.dt, 0.05)
         self.ocean.set_shader_input("water_time", now)
+        self.update_ocean_ships(now)
+        self.update_sky_effects(dt)
+        self.update_campfire_ambience(now)
         if not self.game_over:
             self.move_player()
             self.recenter_captured_mouse()
@@ -766,8 +947,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             if particle["age"] >= particle["lifetime"]:
                 self.reset_fire_particle(
                     particle,
-                    21.5,
-                    35.5,
+                    *CAMPFIRE_POSITION,
                 )
             progress = particle["age"] / particle["lifetime"]
             pulse = 0.82 + 0.18 * math.sin(now * 18.0 + particle["phase"])
@@ -799,6 +979,7 @@ class NeonFPS(WorldBuilder, EntityBuilder, GameplayMixin):
             self.message_text.text = ""
             self.message = ""
         self.capture_text.enabled = not mouse.locked and not self.game_over
+        self.sky.position = camera.world_position
         if now >= self.next_hud_refresh:
             self.refresh_hud()
 

@@ -3,21 +3,25 @@ from copy import deepcopy
 from ursina import Entity, Text, color
 
 from .config import (
+    GUARD_COUNT,
     HOUSE_FACADE_COLORS,
     HOUSE_NAMES,
     HOUSE_POSITIONS,
     HOUSE_ROTATIONS,
     HOUSE_SIGNS,
     INTERACTABLES,
+    NEIGHBOR_CHASE_SPEED_MULTIPLIER,
     NEIGHBOR_COATS,
-    NEIGHBOR_COUNT,
     NEIGHBOR_STARTS,
     NEIGHBOR_TROUSERS,
+    OFFICER_COUNT,
 )
 from .geometry import (
     create_gable_mesh,
     create_gable_roof_mesh,
     create_profile_mesh,
+    create_shirt_front_mesh,
+    create_spark_texture,
     enable_alpha_blending,
 )
 from .models import GuardState, HouseEntities, InteractableState
@@ -329,19 +333,36 @@ class EntityBuilder:
 
     def build_guard(self):
         self.guard_entities: list[GuardState] = []
-        for index in range(NEIGHBOR_COUNT):
+        shirt_front_model = create_shirt_front_mesh()
+        package_glow_texture = create_spark_texture()
+        for index in range(GUARD_COUNT):
+            is_officer = index < OFFICER_COUNT
             x, z = NEIGHBOR_STARTS[index % len(NEIGHBOR_STARTS)]
             root = Entity(position=(x, 0, z))
+            package_glow = Entity(
+                parent=root,
+                model="quad",
+                position=(0, 1.05, 0),
+                scale=(1.25, 2.1, 1),
+                color=color.rgba(255, 184, 55, 190),
+                texture=package_glow_texture,
+                billboard=True,
+                double_sided=True,
+                unlit=True,
+                enabled=False,
+            )
+            package_glow.set_light_off()
+            enable_alpha_blending(package_glow)
             coat_color = (
                 NEIGHBOR_COATS[0]
-                if index == 0
+                if is_officer
                 else NEIGHBOR_COATS[
                     1 + (index - 1) % (len(NEIGHBOR_COATS) - 1)
                 ]
             )
             trouser_color = (
                 NEIGHBOR_TROUSERS[0]
-                if index == 0
+                if is_officer
                 else NEIGHBOR_TROUSERS[
                     1 + (index - 1) % (len(NEIGHBOR_TROUSERS) - 1)
                 ]
@@ -391,6 +412,12 @@ class EntityBuilder:
                 ),
                 color=color.white,
                 texture=self.skin_texture,
+            )
+            Entity(
+                parent=root,
+                model=shirt_front_model,
+                color=color.rgb(180, 166, 139),
+                double_sided=True,
             )
             self.apply_skin_material(neck)
             head = Entity(
@@ -499,11 +526,11 @@ class EntityBuilder:
                     scale=0.018,
                     color=(
                         color.rgb(212, 180, 90)
-                        if index == 0
+                        if is_officer
                         else color.rgb(58, 52, 42)
                     ),
                 )
-            if index == 0:
+            if is_officer:
                 Entity(
                     parent=root,
                     model="cube",
@@ -534,14 +561,18 @@ class EntityBuilder:
                 text="Hi",
                 position=(0, 2.12, 0),
                 origin=(0, 0),
-                scale=5,
+                scale=8.5,
                 color=color.rgb(36, 47, 42),
                 billboard=True,
                 background=True,
                 unlit=True,
                 enabled=False,
             )
-            greeting_bubble.background.color = color.rgba(246, 242, 219, 245)
+            greeting_bubble.create_background(
+                padding=(0.26, 0.18),
+                radius=0.07,
+                color=color.rgba(246, 242, 219, 245),
+            )
             for side in (-1, 1):
                 Entity(
                     parent=root,
@@ -623,23 +654,21 @@ class EntityBuilder:
                 )
                 Entity(
                     parent=leg,
-                    model="cube",
-                    position=(0, -0.765, 0.08),
-                    scale=(0.15, 0.11, 0.29),
+                    model="sphere",
+                    position=(0, -0.73, 0.08),
+                    scale=(0.19, 0.15, 0.34),
                     color=color.rgb(35, 35, 33),
-                    texture=self.metal_texture,
                 )
                 Entity(
                     parent=leg,
                     model="cube",
-                    position=(0, -0.65, 0.005),
-                    scale=(0.15, 0.13, 0.15),
-                    color=trouser_color,
-                    texture=self.fabric_texture,
+                    position=(0, -0.805, 0.085),
+                    scale=(0.17, 0.035, 0.29),
+                    color=color.rgb(24, 24, 23),
                 )
                 legs.append(leg)
 
-            if index == 0:
+            if is_officer:
                 Entity(
                     parent=head,
                     model="cube",
@@ -686,6 +715,9 @@ class EntityBuilder:
                     "limbs": (arms[0], arms[1], legs[0], legs[1]),
                     "greeting_bubble": greeting_bubble,
                     "greeting_until": 0.0,
+                    "sky_gazing_until": 0.0,
+                    "next_sky_gaze_at": 0.0,
+                    "sky_gaze_duration": 2.8,
                     "x": x,
                     "z": z,
                     "path": [],
@@ -693,13 +725,22 @@ class EntityBuilder:
                     "patrol_target": (int(x), int(z)),
                     "phase": index * 1.7,
                     "speed": 0.68 + index * 0.055,
-                    "chase_speed": 1.2 + index * 0.06,
+                    "chase_speed": (
+                        1.2 + index * 0.06
+                    ) * NEIGHBOR_CHASE_SPEED_MULTIPLIER,
                     "chase_radius": 4.5 + index * 0.3,
                     "model_controlled": index == 0,
+                    "is_officer": is_officer,
+                    "transformed_by_ufo": False,
+                    "eliminated": False,
                     "ai_target": None,
                     "ai_mode": "patrol",
                     "ai_inflight": False,
                     "ai_inflight_generation": -1,
                     "ai_retry_at": 0.0,
+                    "package_glow": package_glow,
+                    "package_count": 0,
+                    "snack_target": None,
+                    "next_package_check_at": 0.0,
                 }
             )

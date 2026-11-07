@@ -19,6 +19,8 @@ uniform struct {
 } p3d_LightSource[1];
 uniform mat4 p3d_ModelViewProjectionMatrix;
 uniform mat4 p3d_ModelViewMatrix;
+uniform mat4 p3d_ProjectionMatrix;
+uniform mat4 p3d_ModelMatrix;
 uniform mat3 p3d_NormalMatrix;
 attribute vec4 p3d_Vertex;
 attribute vec3 p3d_Normal;
@@ -26,6 +28,7 @@ attribute vec4 p3d_Color;
 attribute vec2 p3d_MultiTexCoord0;
 uniform vec2 texture_scale;
 uniform vec2 texture_offset;
+uniform float mesh_relief;
 varying vec2 texcoords;
 varying vec3 view_position;
 varying vec3 view_normal;
@@ -33,9 +36,16 @@ varying vec4 vertex_color;
 varying vec4 shadow_coordinate;
 
 void main() {
-    gl_Position = p3d_ModelViewProjectionMatrix * p3d_Vertex;
     view_position = vec3(p3d_ModelViewMatrix * p3d_Vertex);
     view_normal = normalize(p3d_NormalMatrix * p3d_Normal);
+    vec3 world_position = vec3(p3d_ModelMatrix * p3d_Vertex);
+    float broad_wave = sin(world_position.x * 1.7 + world_position.z * 0.9)
+        * sin(world_position.y * 2.1 + world_position.x * 0.7);
+    float fine_wave = sin(world_position.x * 4.3 + world_position.y * 2.7)
+        * sin(world_position.z * 3.4 - world_position.y * 1.9);
+    float relief = (broad_wave * 0.72 + fine_wave * 0.28) * mesh_relief;
+    view_position += view_normal * relief;
+    gl_Position = p3d_ProjectionMatrix * vec4(view_position, 1.0);
     shadow_coordinate = p3d_LightSource[0].shadowViewMatrix
         * vec4(view_position, 1.0);
     texcoords = p3d_MultiTexCoord0 * texture_scale + texture_offset;
@@ -106,28 +116,16 @@ void main() {
     if (shadow_strength > 0.5) {
         vec4 shadow_sample = shadow_coordinate;
         shadow_sample.z += 0.0015;
-        vec2 texel = vec2(1.0 / 2048.0) * shadow_sample.w;
+        vec2 texel = vec2(1.0 / 1024.0) * shadow_sample.w;
         float shadow_sum = shadow2DProj(
             p3d_LightSource[0].shadowMap,
-            shadow_sample
-                + vec4(-0.5 * texel.x, -0.5 * texel.y, 0.0, 0.0)
+            shadow_sample + vec4(-0.25 * texel.x, -0.25 * texel.y, 0.0, 0.0)
         ).r;
         shadow_sum += shadow2DProj(
             p3d_LightSource[0].shadowMap,
-            shadow_sample
-                + vec4(0.5 * texel.x, 0.5 * texel.y, 0.0, 0.0)
+            shadow_sample + vec4(0.25 * texel.x, 0.25 * texel.y, 0.0, 0.0)
         ).r;
-        shadow_sum += shadow2DProj(
-            p3d_LightSource[0].shadowMap,
-            shadow_sample
-                + vec4(0.5 * texel.x, -0.5 * texel.y, 0.0, 0.0)
-        ).r;
-        shadow_sum += shadow2DProj(
-            p3d_LightSource[0].shadowMap,
-            shadow_sample
-                + vec4(-0.5 * texel.x, 0.5 * texel.y, 0.0, 0.0)
-        ).r;
-        shadow_visibility = shadow_sum * 0.25;
+        shadow_visibility = shadow_sum * 0.5;
     }
     float ambient_shadow = mix(0.68, 1.0, shadow_visibility);
     vec3 lighting = albedo.rgb
@@ -191,6 +189,7 @@ void main() {
         default_input={
             "texture_scale": Vec2(1, 1),
             "texture_offset": Vec2(0, 0),
+            "mesh_relief": 0.0,
         },
     )
 
@@ -293,38 +292,50 @@ uniform sampler2D scene_color;
 uniform sampler2D scene_depth;
 uniform vec2 inverse_resolution;
 uniform float ao_enabled;
+uniform float cinematic_enabled;
 varying vec2 texcoords;
 
 void main() {
     vec4 color = texture2D(scene_color, texcoords);
-    float center_depth = texture2D(scene_depth, texcoords).r;
-    if (ao_enabled < 0.5 || center_depth >= 0.99999) {
+    if (ao_enabled < 0.5 && cinematic_enabled < 0.5) {
         gl_FragColor = color;
         return;
     }
 
-    vec2 directions[8];
-    directions[0] = vec2(1.0, 0.0);
-    directions[1] = vec2(-1.0, 0.0);
-    directions[2] = vec2(0.0, 1.0);
-    directions[3] = vec2(0.0, -1.0);
-    directions[4] = vec2(0.707, 0.707);
-    directions[5] = vec2(-0.707, 0.707);
-    directions[6] = vec2(0.707, -0.707);
-    directions[7] = vec2(-0.707, -0.707);
-
-    float occlusion = 0.0;
-    for (int i = 0; i < 8; ++i) {
-        float sample_depth = texture2D(
-            scene_depth,
-            texcoords + directions[i] * inverse_resolution * 4.0
-        ).r;
-        float depth_delta = center_depth - sample_depth;
-        occlusion += smoothstep(0.0004, 0.008, depth_delta);
+    float center_depth = texture2D(scene_depth, texcoords).r;
+    if (center_depth >= 0.99999) {
+        gl_FragColor = color;
+        return;
     }
 
-    float visibility = 1.0 - min(occlusion * 0.04 * ao_enabled, 0.3);
-    gl_FragColor = vec4(color.rgb * visibility, color.a);
+    float occlusion = 0.0;
+    if (ao_enabled > 0.5) {
+        vec2 offset = inverse_resolution * 4.0;
+        float right_depth = texture2D(scene_depth, texcoords + vec2(offset.x, 0.0)).r;
+        float left_depth = texture2D(scene_depth, texcoords - vec2(offset.x, 0.0)).r;
+        float up_depth = texture2D(scene_depth, texcoords + vec2(0.0, offset.y)).r;
+        float down_depth = texture2D(scene_depth, texcoords - vec2(0.0, offset.y)).r;
+        occlusion += smoothstep(0.0004, 0.008, center_depth - right_depth);
+        occlusion += smoothstep(0.0004, 0.008, center_depth - left_depth);
+        occlusion += smoothstep(0.0004, 0.008, center_depth - up_depth);
+        occlusion += smoothstep(0.0004, 0.008, center_depth - down_depth);
+    }
+
+    float visibility = 1.0 - min(occlusion * 0.08, 0.3);
+    vec3 graded_color = color.rgb * visibility;
+    if (cinematic_enabled > 0.5) {
+        float luminance = dot(graded_color, vec3(0.2126, 0.7152, 0.0722));
+        float highlights = smoothstep(0.28, 0.85, luminance);
+        float shadows = 1.0 - smoothstep(0.12, 0.62, luminance);
+        graded_color += vec3(0.035, 0.012, -0.018) * highlights;
+        graded_color += vec3(-0.012, 0.006, 0.035) * shadows;
+        graded_color = graded_color * (1.0 + graded_color * 0.12)
+            / (1.0 + graded_color * 0.2);
+        float radius = length((texcoords - 0.5) * vec2(1.0, 0.72));
+        float vignette = 1.0 - smoothstep(0.32, 0.78, radius) * 0.2;
+        graded_color *= vignette;
+    }
+    gl_FragColor = vec4(graded_color, color.a);
 }
 """
     return PandaShader.make(PandaShader.SL_GLSL, vertex, fragment)

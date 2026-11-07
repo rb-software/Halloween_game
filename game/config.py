@@ -4,6 +4,12 @@ from ursina import color
 
 from .models import InteractableDefinition, SnackKind
 
+PACKAGE_RETURN_POSITION = (6.0, 5.0)
+PACKAGE_RETURN_RADIUS = 1.8
+SUPER_PACKAGE_SPEED_MULTIPLIER = 4
+SUPER_PACKAGE_DURATION = 12.0
+OFFICER_SALUTE_RADIUS = 4.5
+
 TEXTURE_DIR = Path(__file__).resolve().parent.parent / "assets" / "textures"
 
 AMBIENTCG_DIR = TEXTURE_DIR / "ambientcg"
@@ -20,24 +26,13 @@ MAP_HEIGHT = 47
 
 PLAZA_CENTER = (6.0, 5.0)
 
-POLICE_CAR_POSITION = (7.0, 5.0)
+CAMPFIRE_POSITION = (21.5, 35.5)
 
-PLAYER_START = (17.5, 0, 12.5)
+POLICE_CAR_POSITION = (7.0, 11.0)
+
+PLAYER_START = (17.5, 0, 23.5)
 
 PLAYER_START_ROTATION = 0
-
-FOREST_TREE_CELLS = tuple(
-    (x, z)
-    for z, row in (
-        (29, (2, 7, 11, 24, 29, 32)),
-        (32, (4, 10, 13, 23, 28, 31)),
-        (35, (2, 6, 12, 25, 30, 32)),
-        (38, (4, 9, 13, 22, 27, 31)),
-        (41, (2, 7, 11, 24, 29, 32)),
-        (44, (4, 10, 13, 23, 28, 31)),
-    )
-    for x in row
-)
 
 HOUSE_POSITIONS = (
     (3.5, 10.2),
@@ -85,7 +80,11 @@ HOUSE_SIGNS = (
     "CARETAKER",
 )
 
-NEIGHBOR_COUNT = 20
+OFFICER_COUNT = 2
+NEIGHBOR_COUNT = 15
+GUARD_COUNT = OFFICER_COUNT + NEIGHBOR_COUNT
+OFFICER_VISION_RADIUS = 12.0
+OFFICER_ELIMINATION_RADIUS = 1.0
 
 NEIGHBOR_STARTS = (
     (13.5, 10.5),
@@ -151,31 +150,21 @@ INTERACTABLES: tuple[InteractableDefinition, ...] = (
     },
 )
 
-SNACK_STARTS: tuple[tuple[float, float, SnackKind], ...] = (
-    (4.5, 2.5, "lollipop"),
-    (14.0, 3.5, "fudge"),
-    (3.5, 10.0, "pumpkin"),
-    (14.5, 10.0, "lollipop"),
-    (8.5, 10.5, "fudge"),
-    (8.5, 2.5, "pumpkin"),
-    (13.5, 5.5, "fudge"),
-    (21.5, 6.5, "pumpkin"),
-    (30.5, 5.5, "lollipop"),
-    (22.5, 20.5, "fudge"),
-    (31.5, 18.5, "pumpkin"),
-    (7.5, 22.5, "lollipop"),
-    (15.5, 18.5, "fudge"),
-    (18.5, 8.5, "pumpkin"),
-)
+SNACK_COUNT = 36
+
+SNACK_MIN_SPACING = 1.8
+NEIGHBOR_CHASE_SPEED_MULTIPLIER = 2
+NEIGHBOR_PACKAGE_CAPACITY = 3
+
+SNACK_KINDS: tuple[SnackKind, ...] = ("lollipop", "fudge", "pumpkin")
 
 SNACK_COLORS = (
-    color.rgb(112, 70, 62),
-    color.rgb(92, 101, 75),
-    color.rgb(134, 91, 56),
-    color.rgb(91, 78, 96),
-    color.rgb(122, 98, 59),
-    color.rgb(128, 72, 56),
-    color.rgb(71, 98, 102),
+    color.rgb(255, 52, 94),
+    color.rgb(255, 176, 38),
+    color.rgb(45, 237, 255),
+    color.rgb(205, 72, 255),
+    color.rgb(84, 255, 92),
+    color.rgb(255, 70, 224),
 )
 
 
@@ -271,6 +260,4 @@ def create_map():
         grid[int(entrance_z)][int(house_x)] = "."
     for prop in INTERACTABLES:
         grid[int(prop["z"])][int(prop["x"])] = "."
-    for x, z in FOREST_TREE_CELLS:
-        grid[z][x] = "T"
     return grid
